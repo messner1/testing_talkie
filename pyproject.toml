@@ -1,0 +1,24 @@
+[project]
+name = "testing-talkie-evals"
+version = "0.1.0"
+description = "Leakage + composition evaluation harness for Talkie and Typewriter."
+requires-python = ">=3.11"  # talkie requires >=3.11
+dependencies = [
+    "torch",
+    "transformers",
+    "datasets",
+    "pandas",
+    "tqdm",
+    "talkie",
+]
+
+[project.optional-dependencies]
+# Downstream analysis/plotting scripts (binned_years, visualize_aggregate, obsolete_brown).
+analysis = ["matplotlib", "nltk", "numpy"]
+
+[tool.uv.sources]
+talkie = { git = "https://github.com/talkie-lm/talkie.git" }
+
+[tool.setuptools]
+# Run as scripts (run_eval.py + the evals/ package on sys.path), not installed as a package.
+py-modules = []

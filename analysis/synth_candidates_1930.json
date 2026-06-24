@@ -1,0 +1,662 @@
+[
+  {
+    "word": "scintillon",
+    "seed_word": "positron",
+    "strategy": "slot_reuse",
+    "family": "particle_on",
+    "contexts": {
+      "high": "The unit of heavy hydrogen, the deuteron, bids fair to rival in interest its recently found cousins, the neutron and [MASK]",
+      "medium": "Following the discovery of the neutron, a further faint corpuscle betrayed only by the flash it left in the screen was provisionally named the [MASK]",
+      "low": "The track in the chamber could only be explained by the passage of a [MASK]"
+    }
+  },
+  {
+    "word": "fermiton",
+    "seed_word": "positron",
+    "strategy": "affix_swap",
+    "family": "particle_on",
+    "contexts": {
+      "high": "Among the recoil fragments the counters registered a heavy short-lived corpuscle, distinct from the neutron and the proton alike, which the authors provisionally christened the [MASK]",
+      "medium": "The cloud-chamber photograph showed a third track, ascribed to a hitherto unreported nuclear particle they named the [MASK]",
+      "low": "Each disintegration appeared to liberate a single [MASK]"
+    }
+  },
+  {
+    "word": "radiotron",
+    "seed_word": "positron",
+    "strategy": "affix_swap",
+    "family": "particle_tron",
+    "contexts": {
+      "high": "Just as the cyclotron and the magnetron take their names from their function, the corpuscle ejected by the active mineral at the instant of its decay has been provisionally christened the [MASK]",
+      "medium": "Among the rays from the pitchblende the experimenters reported a discrete charged fragment which they called the [MASK]",
+      "low": "The electrometer recorded each passing [MASK]"
+    }
+  },
+  {
+    "word": "spinitron",
+    "seed_word": "positron",
+    "strategy": "affix_swap",
+    "family": "particle_tron",
+    "contexts": {
+      "high": "The reversal of the magnetic moment was attributed to a small charged unit carrying the rotational property, which the theorists provisionally named the [MASK]",
+      "medium": "To account for the doubling of the lines the authors postulated a hypothetical corpuscle, the [MASK]",
+      "low": "No detector has yet captured a free [MASK]"
+    }
+  },
+  {
+    "word": "bindon",
+    "seed_word": "positron",
+    "strategy": "analogical_blend",
+    "family": "particle_on",
+    "contexts": {
+      "high": "If light is quantised as the photon, then by analogy the cohesive field that holds the nuclear fragments together might be carried by a corpuscle we may name the [MASK]",
+      "medium": "The attractive agency between the particles was supposed, on this view, to be conveyed by a discrete unit they termed the [MASK]",
+      "low": "Such a thing as a free [MASK] has never been observed"
+    }
+  },
+  {
+    "word": "fissiton",
+    "seed_word": "positron",
+    "strategy": "analogical_blend",
+    "family": "particle_on",
+    "contexts": {
+      "high": "When the heavy nucleus bursts asunder, a prompt corpuscle is shot out before the fragments separate; for this momentary particle the discoverers propose the name [MASK]",
+      "medium": "Among the products of uranium splitting a short-lived emission was reported, which the workers labelled the [MASK]",
+      "low": "The ionisation chamber clicked once for every [MASK]"
+    }
+  },
+  {
+    "word": "thoughton",
+    "seed_word": "positron",
+    "strategy": "cross_family",
+    "family": "particle_on",
+    "contexts": {
+      "high": "Just as the energy of the collapsing star escapes almost entirely in faint corpuscles, some have speculated, in a lighter vein, that the activity of the mind might be carried by an undiscovered particle they call the [MASK]",
+      "medium": "The essayist imagined that each unit of mental activity might correspond to a hypothetical corpuscle, the [MASK]",
+      "low": "There is of course no evidence whatever for the [MASK]"
+    }
+  },
+  {
+    "word": "warmton",
+    "seed_word": "positron",
+    "strategy": "transparent_stem",
+    "family": "particle_on",
+    "contexts": {
+      "high": "By analogy with the corpuscle of light, the quantum of heat conceived as travelling through the solid as a discrete particle was once jocularly named the [MASK]",
+      "medium": "The propagation of warmth through the bar was described, somewhat fancifully, as a stream of units each called a [MASK]",
+      "low": "The idea of a [MASK] never gained acceptance"
+    }
+  },
+  {
+    "word": "luxiton",
+    "seed_word": "exciton",
+    "strategy": "slot_reuse",
+    "family": "quasiparticle_on",
+    "contexts": {
+      "high": "Just as the positive hole can be pictured as a collectivized positron, the excited state can be pictured as a kind of particle which we shall call a (collectivized) [MASK]",
+      "medium": "When the crystal absorbs a quantum of light, the bound electron-hole pair migrates through the lattice as a unit we term the [MASK]",
+      "low": "Energy travels through the crystal carried by the [MASK]"
+    }
+  },
+  {
+    "word": "vibraton",
+    "seed_word": "exciton",
+    "strategy": "affix_swap",
+    "family": "quasiparticle_on",
+    "contexts": {
+      "high": "As the bound electron-hole pair travels through the lattice as an exciton, the quantum of lattice oscillation, regarded as a mobile entity in its own right, we here designate the [MASK]",
+      "medium": "The thermal agitation of the atoms could be treated as a gas of discrete excitations, each of which the authors term a [MASK]",
+      "low": "The heat capacity was computed by summing over every [MASK]"
+    }
+  },
+  {
+    "word": "spiniton",
+    "seed_word": "exciton",
+    "strategy": "affix_swap",
+    "family": "quasiparticle_on",
+    "contexts": {
+      "high": "Just as the collectivized excitation of the crystal behaves as a particle, the wave of overturned magnetic moments propagating through the ordered lattice may be quantised and called the [MASK]",
+      "medium": "The reversal travelled through the magnetic crystal as a single migrating quantum, which we name the [MASK]",
+      "low": "The disordering was carried through the lattice by the [MASK]"
+    }
+  },
+  {
+    "word": "luminiton",
+    "seed_word": "exciton",
+    "strategy": "analogical_blend",
+    "family": "quasiparticle_on",
+    "contexts": {
+      "high": "When the bound electron-hole pair recombines and couples to the radiation field within the crystal, the resulting mixed light-and-matter quantum we propose to call the [MASK]",
+      "medium": "Inside the resonant slab the photon and the excitation merged into a single travelling entity, which the authors designate the [MASK]",
+      "low": "The mixed quantum propagating in the slab is the [MASK]"
+    }
+  },
+  {
+    "word": "dielecton",
+    "seed_word": "exciton",
+    "strategy": "analogical_blend",
+    "family": "quasiparticle_on",
+    "contexts": {
+      "high": "As the excited state of the insulator travels as an exciton, the joint quantum formed when this excitation is dressed by the polarisation of the surrounding medium is here named the [MASK]",
+      "medium": "The coupling of the lattice excitation to the electric field gave rise to a single composite entity we call the [MASK]",
+      "low": "The dispersion curve bends sharply where the [MASK] forms"
+    }
+  },
+  {
+    "word": "memoton",
+    "seed_word": "exciton",
+    "strategy": "cross_family",
+    "family": "quasiparticle_on",
+    "contexts": {
+      "high": "By analogy with the collectivized excitation of a crystal, the persistent disturbance once imagined to carry the trace of memory through the network of brain cells was, half in jest, called the [MASK]",
+      "medium": "Older speculation pictured a recollection as a self-sustaining excitation circulating in the tissue, a kind of [MASK]",
+      "low": "No instrument has detected a [MASK]"
+    }
+  },
+  {
+    "word": "flowiton",
+    "seed_word": "exciton",
+    "strategy": "transparent_stem",
+    "family": "quasiparticle_on",
+    "contexts": {
+      "high": "Just as the excited state of the solid is treated as a mobile particle, the elementary unit of frictionless streaming in the cooled liquid was, somewhat fancifully, quantised and termed the [MASK]",
+      "medium": "The collective motion of the liquid was described as a procession of discrete units, each called a [MASK]",
+      "low": "The current was pictured as a stream of every [MASK]"
+    }
+  },
+  {
+    "word": "homoserase",
+    "seed_word": "synthase",
+    "strategy": "slot_reuse",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "This paper describes an enzyme system synthesizing threonine from homoserine; we have called it threonine [MASK]",
+      "medium": "The cell-free extract converted homoserine quantitatively, and we attribute this to a hitherto undescribed [MASK]",
+      "low": "The reaction was abolished on boiling, indicating that it is catalysed by a [MASK]"
+    }
+  },
+  {
+    "word": "ferroporphase",
+    "seed_word": "synthase",
+    "strategy": "affix_swap",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "Just as the dehydrogenases remove hydrogen and the carboxylases handle carbon dioxide, the enzyme that inserts iron into the porphyrin ring may aptly be called the [MASK]",
+      "medium": "Incorporation of iron into the pigment was catalysed by a heat-labile factor in the extract, evidently a specific [MASK]",
+      "low": "The conversion ceased when the [MASK] was inactivated"
+    }
+  },
+  {
+    "word": "citrullinase",
+    "seed_word": "synthase",
+    "strategy": "affix_swap",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "This communication describes a soluble enzyme that condenses ornithine with carbamyl phosphate to yield citrulline; we propose for it the name [MASK]",
+      "medium": "The tissue homogenate formed citrulline from its precursors, an activity we ascribe to a previously unrecognised [MASK]",
+      "low": "Dialysis of the cofactor abolished the action of the [MASK]"
+    }
+  },
+  {
+    "word": "pectolase",
+    "seed_word": "synthase",
+    "strategy": "analogical_blend",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "The progressive softening of the ripening fruit was traced to the cleavage of the pectic substances, a hydrolysis we attribute to a specific [MASK]",
+      "medium": "The juice expressed from the soft tissue rapidly degraded the gel, evidently through a heat-labile [MASK]",
+      "low": "Activity was lost when the [MASK] was heated"
+    }
+  },
+  {
+    "word": "thyminase",
+    "seed_word": "synthase",
+    "strategy": "analogical_blend",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "Where the proteinases split protein and the lipase splits fat, the enzyme effecting the removal of the pyrimidine base thymine from its sugar in the digest we propose to designate the [MASK]",
+      "medium": "The progressive liberation of the free base from the nucleoside pointed to the action of a hitherto unrecognised [MASK]",
+      "low": "Addition of the purified [MASK] restored the activity"
+    }
+  },
+  {
+    "word": "sleepase",
+    "seed_word": "synthase",
+    "strategy": "cross_family",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "Where the dehydrogenases remove hydrogen and the synthesising enzymes build a bond, the hypothetical ferment supposed to accumulate during waking and to induce slumber has been playfully named the [MASK]",
+      "medium": "The investigators jokingly attributed the onset of drowsiness to a fatigue-borne ferment they called the [MASK]",
+      "low": "No such substance has ever been isolated, least of all a [MASK]"
+    }
+  },
+  {
+    "word": "rustase",
+    "seed_word": "synthase",
+    "strategy": "transparent_stem",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "Just as the oxidases promote the uptake of oxygen by their substrates, the heat-labile factor that hastened the reddening corrosion of the iron filings in the moist culture was loosely dubbed the [MASK]",
+      "medium": "The biological acceleration of the metal's decay in the broth was attributed, half-seriously, to a hypothetical ferment, the [MASK]",
+      "low": "Boiling the filtrate destroyed the supposed [MASK]"
+    }
+  },
+  {
+    "word": "tyraminergic",
+    "seed_word": "cholinergic",
+    "strategy": "slot_reuse",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "We need words to indicate action by two kinds of chemical transmission, one by a substance like adrenaline, the other like acetylcholine; alongside 'adrenergic' we therefore also speak of [MASK]",
+      "medium": "Fibres whose terminals liberate the pressor amine on stimulation may conveniently be grouped together and described as [MASK]",
+      "low": "The response was abolished by the blocking agent, suggesting that the pathway is [MASK]"
+    }
+  },
+  {
+    "word": "tryptaminergic",
+    "seed_word": "cholinergic",
+    "strategy": "affix_swap",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Where one set of fibres is adrenergic and another cholinergic, those whose endings liberate the indole amine first isolated from the gut wall we may by the same usage call [MASK]",
+      "medium": "Nerves whose action is mediated by the locally formed indole amine are conveniently described, in this terminology, as [MASK]",
+      "low": "The blocking experiment indicated a [MASK] mechanism"
+    }
+  },
+  {
+    "word": "tyramidergic",
+    "seed_word": "cholinergic",
+    "strategy": "affix_swap",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Since the invertebrate's heart is quickened not by adrenaline but by a related phenolic amine of its blood, the fibres governing it ought, on the cholinergic-adrenergic model, to be called [MASK]",
+      "medium": "Transmission in this creature appeared to depend on a distinct hydroxylated amine, so that the endings may be termed [MASK]",
+      "low": "The drug selectively silenced the [MASK] fibres"
+    }
+  },
+  {
+    "word": "nucleotidergic",
+    "seed_word": "cholinergic",
+    "strategy": "analogical_blend",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "The gut relaxation persisted after both adrenergic and cholinergic blockade, suggesting a third transmitter; since the active agent appeared to be a nucleotide of the cell, such nerves should be styled [MASK]",
+      "medium": "A residual relaxation, resistant to the usual blockers, pointed to fibres of a new class we propose to call [MASK]",
+      "low": "The atropine-resistant relaxation was ascribed to a [MASK] pathway"
+    }
+  },
+  {
+    "word": "histidinergic",
+    "seed_word": "cholinergic",
+    "strategy": "analogical_blend",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Where one set of endings liberates a catechol amine, those whose granules discharge instead the imidazole amino acid as their messenger may, by the established convention, be described as [MASK]",
+      "medium": "The transmitter released at these terminals proved to be the imidazole acid itself, so that the fibres are properly called [MASK]",
+      "low": "The slow potential was attributed to a [MASK] input"
+    }
+  },
+  {
+    "word": "dreamergic",
+    "seed_word": "cholinergic",
+    "strategy": "cross_family",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Where one transmitter system is adrenergic and another cholinergic, the pathways active only during the dreaming phase of sleep, if mediated by their own chemical agent, might by the same convention be termed [MASK]",
+      "medium": "The fibres that come into play solely during dreaming appear to use a distinct transmitter and may be described as [MASK]",
+      "low": "The drug selectively blocked the [MASK] system"
+    }
+  },
+  {
+    "word": "thinkergic",
+    "seed_word": "cholinergic",
+    "strategy": "transparent_stem",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Where one pathway is adrenergic and another cholinergic, the hypothetical nerve channels engaged during deliberate thought, if mediated by their own agent, might be jestingly labelled [MASK]",
+      "medium": "The lecturer proposed, tongue in cheek, that the fibres active in concentration be classed as [MASK]",
+      "low": "He spoke of the brain's [MASK] pathways"
+    }
+  },
+  {
+    "word": "hydrospace",
+    "seed_word": "aerospace",
+    "strategy": "slot_reuse",
+    "family": "domain_space",
+    "contexts": {
+      "high": "The use of acoustic energy to perform all those functions for which electromagnetic energy is employed in aerospace, but now in the watery medium of the deep, has been christened the science of the [MASK]",
+      "medium": "Where the airman speaks of aerospace, the engineer concerned with the submarine ocean has coined the parallel term [MASK]",
+      "low": "The vessel was designed to operate within the [MASK]"
+    }
+  },
+  {
+    "word": "terraspace",
+    "seed_word": "aerospace",
+    "strategy": "affix_swap",
+    "family": "domain_space",
+    "contexts": {
+      "high": "Just as 'aerospace' embraces the atmosphere and the void beyond as one continuous theatre of flight, the region comprising the solid crust and its enveloping fields has been styled, by the same fusion, the [MASK]",
+      "medium": "The geophysicists proposed a single word for the body of the planet taken together with its near surroundings, namely [MASK]",
+      "low": "Instruments were dispatched to survey the [MASK]"
+    }
+  },
+  {
+    "word": "cryospace",
+    "seed_word": "aerospace",
+    "strategy": "affix_swap",
+    "family": "domain_space",
+    "contexts": {
+      "high": "On the model of aerospace, the frozen domain of the polar caps and the ice beneath them, treated as a single field of operation, has been designated the [MASK]",
+      "medium": "Explorers of the glaciers borrowed the airman's fusion and spoke of the icy theatre as the [MASK]",
+      "low": "The sledge party advanced across the [MASK]"
+    }
+  },
+  {
+    "word": "magnetospace",
+    "seed_word": "aerospace",
+    "strategy": "analogical_blend",
+    "family": "domain_space",
+    "contexts": {
+      "high": "As aerospace joins the air and the empty heights into one realm of flight, the shell of charged particles trapped about the earth by its lines of force has been gathered under the single name [MASK]",
+      "medium": "The region dominated by the planet's magnetism was, by analogy with the airman's usage, christened the [MASK]",
+      "low": "The probe reported intense radiation throughout the [MASK]"
+    }
+  },
+  {
+    "word": "vitaspace",
+    "seed_word": "aerospace",
+    "strategy": "analogical_blend",
+    "family": "domain_space",
+    "contexts": {
+      "high": "Just as the engineer speaks of aerospace as the theatre of flight, the naturalist has proposed to call the whole thin film of the globe inhabited by living things the [MASK]",
+      "medium": "The layer in which life is found, taken as a single domain, was named on the same model the [MASK]",
+      "low": "No organism was found outside the [MASK]"
+    }
+  },
+  {
+    "word": "dreamspace",
+    "seed_word": "aerospace",
+    "strategy": "cross_family",
+    "family": "domain_space",
+    "contexts": {
+      "high": "Borrowing the airman's fusion of aerospace, the essayist whimsically named the inner theatre in which the sleeper's visions unfold the [MASK]",
+      "medium": "The imagined realm wherein dreams are enacted he called, half in earnest, the [MASK]",
+      "low": "The poet wandered nightly in his [MASK]"
+    }
+  },
+  {
+    "word": "farspace",
+    "seed_word": "aerospace",
+    "strategy": "transparent_stem",
+    "family": "domain_space",
+    "contexts": {
+      "high": "Where 'aerospace' names the near theatre of flight about our planet, the writers of the technical press have fused a plain English adjective with the same root to denote the remote void between the stars, the [MASK]",
+      "medium": "The far reaches beyond the solar family, treated as a single domain of future travel, they called the [MASK]",
+      "low": "The signal took years to cross the [MASK]"
+    }
+  },
+  {
+    "word": "kinning",
+    "seed_word": "networking",
+    "strategy": "slot_reuse",
+    "family": "method_ing",
+    "contexts": {
+      "high": "The technique of assembling the entire social or family network as the unit of intervention they call [MASK]",
+      "medium": "Rather than treat the patient alone, the workers gather the whole circle of relatives into the session, a procedure they have named [MASK]",
+      "low": "The clinic adopted the new method of [MASK]"
+    }
+  },
+  {
+    "word": "familying",
+    "seed_word": "networking",
+    "strategy": "affix_swap",
+    "family": "method_ing",
+    "contexts": {
+      "high": "Where one school assembles the whole social web as the unit of treatment, another gathers the troubled households of a district into a single therapeutic body, a practice they term [MASK]",
+      "medium": "The drawing together of several afflicted families into one working group the authors designate [MASK]",
+      "low": "The agency's programme rested on this method of [MASK]"
+    }
+  },
+  {
+    "word": "meshing",
+    "seed_word": "networking",
+    "strategy": "affix_swap",
+    "family": "method_ing",
+    "contexts": {
+      "high": "The deliberate drawing of the patient's scattered acquaintances into a single connected fabric of mutual support the social workers have come to call [MASK]",
+      "medium": "Building up the thin and broken contacts of the isolated client into a dense supporting weave is the activity they name [MASK]",
+      "low": "Much of the case rested on patient [MASK]"
+    }
+  },
+  {
+    "word": "companioning",
+    "seed_word": "networking",
+    "strategy": "analogical_blend",
+    "family": "method_ing",
+    "contexts": {
+      "high": "Pairing each lonely client with a sympathetic volunteer who offers ordinary fellowship rather than formal treatment is a practice the agencies have come to describe as [MASK]",
+      "medium": "The scheme of attaching a willing helper to the solitary patient for plain human company they call [MASK]",
+      "low": "The visitor's chief duty was simple [MASK]"
+    }
+  },
+  {
+    "word": "kinscaping",
+    "seed_word": "networking",
+    "strategy": "cross_family",
+    "family": "method_ing",
+    "contexts": {
+      "high": "Surveying and mapping out the whole landscape of a patient's relations and connections, much as a gardener lays out a plot, the therapists have coined for the procedure the term [MASK]",
+      "medium": "The drawing of a chart of all the client's living ties, treated as a terrain to be cultivated, they designate [MASK]",
+      "low": "The first session was given over to [MASK]"
+    }
+  },
+  {
+    "word": "ringing",
+    "seed_word": "networking",
+    "strategy": "transparent_stem",
+    "family": "method_ing",
+    "contexts": {
+      "high": "Gathering the patient's intimates into a closed circle that meets regularly for mutual aid, the workers have, from the plain English noun, named the technique [MASK]",
+      "medium": "The forming of the family and friends into a standing supportive circle is the procedure they call [MASK]",
+      "low": "The programme depended on weekly [MASK]"
+    }
+  },
+  {
+    "word": "kindist",
+    "seed_word": "sexist",
+    "strategy": "slot_reuse",
+    "family": "belief_ist",
+    "contexts": {
+      "high": "Anyone who believes in genetic racial differences is a 'racist'; by analogy, anyone who holds man's interests to count for more merely because he is man and the beast a beast is a '[MASK]'",
+      "medium": "Just as the racist exalts his own stock above others, he who arbitrarily ranks his own kind above the brute creation deserves to be called a [MASK]",
+      "low": "The pamphlet denounced him as a thoroughgoing [MASK]"
+    }
+  },
+  {
+    "word": "yearist",
+    "seed_word": "sexist",
+    "strategy": "affix_swap",
+    "family": "belief_ist",
+    "contexts": {
+      "high": "Anyone who believes in inborn racial differences is a 'racist'; on the same pattern, anyone who presumes the old to be of less worth simply by reason of their years is a '[MASK]'",
+      "medium": "He who discounts a man's capacities the moment his hair turns grey is, by this coinage, a [MASK]",
+      "low": "The editorial accused the board of being [MASK]"
+    }
+  },
+  {
+    "word": "rankist",
+    "seed_word": "sexist",
+    "strategy": "affix_swap",
+    "family": "belief_ist",
+    "contexts": {
+      "high": "If the man who believes in genetic racial differences is a 'racist', then the man who believes the lower orders to be born inferior to the higher is, by the same logic, a '[MASK]'",
+      "medium": "One who holds that worth is fixed by the station into which a person was born may justly be styled a [MASK]",
+      "low": "The reviewer found the whole argument unpleasantly [MASK]"
+    }
+  },
+  {
+    "word": "faithist",
+    "seed_word": "sexist",
+    "strategy": "analogical_blend",
+    "family": "belief_ist",
+    "contexts": {
+      "high": "As we brand the man who despises another for his race a 'racist', so the man who holds a person of a given religion to be inherently lesser might fairly be called a '[MASK]'",
+      "medium": "He who measures a man's worth by the creed he professes is, on this analogy, a [MASK]",
+      "low": "The tract condemned every shade of [MASK]"
+    }
+  },
+  {
+    "word": "townist",
+    "seed_word": "sexist",
+    "strategy": "cross_family",
+    "family": "belief_ist",
+    "contexts": {
+      "high": "Just as the racist disdains the man of another stock, the city-dweller who assumes the countryman his natural inferior might, by a like coinage, be dubbed a '[MASK]'",
+      "medium": "One who supposes that wit and worth belong to the town and dullness to the village is, on this pattern, a [MASK]",
+      "low": "The columnist was charged with being a [MASK]"
+    }
+  },
+  {
+    "word": "tallist",
+    "seed_word": "sexist",
+    "strategy": "transparent_stem",
+    "family": "belief_ist",
+    "contexts": {
+      "high": "If believing one race born superior makes a man a 'racist', then believing the lofty of stature born to command and the short to obey would make him, by the plainest analogy, a '[MASK]'",
+      "medium": "He who supposes that merit rises with a man's height is, on this coinage, a [MASK]",
+      "low": "The satirist mocked the colonel as an unrepentant [MASK]"
+    }
+  },
+  {
+    "word": "medio",
+    "seed_word": "macro",
+    "strategy": "cross_family",
+    "family": "econ_clipping",
+    "contexts": {
+      "high": "The economist distinguishes the study of the single firm from that of the whole nation; but between the micro and the macro there lies the conduct of the industry or region, which some now clip simply to the [MASK]",
+      "medium": "For the middle level, neither the individual household nor the entire economy, the writers have introduced the short label [MASK]",
+      "low": "His analysis worked entirely at the [MASK]"
+    }
+  },
+  {
+    "word": "endo",
+    "seed_word": "macro",
+    "strategy": "affix_swap",
+    "family": "econ_clipping",
+    "contexts": {
+      "high": "Where the economist clips his levels to micro and macro, the analyst of the single establishment, concerned only with what passes inside the firm's own walls, has begun to speak merely of the [MASK]",
+      "medium": "For the workings confined within one concern, as against the market without, the clipped term they favour is the [MASK]",
+      "low": "The study was confined to the [MASK]"
+    }
+  },
+  {
+    "word": "globo",
+    "seed_word": "macro",
+    "strategy": "transparent_stem",
+    "family": "econ_clipping",
+    "contexts": {
+      "high": "Beyond even the macro, which treats the single national economy, lies the order of trade among many nations taken together, a level the theorists have lately clipped to the [MASK]",
+      "medium": "For the plane above the nation, embracing the commerce of the whole world, the abbreviated term proposed is the [MASK]",
+      "low": "The treaty was framed at the [MASK]"
+    }
+  },
+  {
+    "word": "phose",
+    "seed_word": "cd",
+    "strategy": "slot_reuse",
+    "family": "photometric_unit",
+    "contexts": {
+      "high": "It is recommended that the new unit for luminous intensity, equal to the brightness of a black body at the freezing point of platinum, shall be called the [MASK]",
+      "medium": "The commission resolved that intensity of light be henceforth reckoned in a fresh fundamental unit, to which they gave the name [MASK]",
+      "low": "The lamp was rated at several hundred [MASK]"
+    }
+  },
+  {
+    "word": "lumeron",
+    "seed_word": "cd",
+    "strategy": "cross_family",
+    "family": "photometric_unit",
+    "contexts": {
+      "high": "Just as intensity of light was assigned its own fundamental unit, the quantity of luminous flux falling upon a surface was, in the proposed scheme, to be measured in a unit named the [MASK]",
+      "medium": "The flux received per unit area, the committee resolved, should be expressed in the newly coined [MASK]",
+      "low": "The illumination at the bench was scarcely one [MASK]"
+    }
+  },
+  {
+    "word": "taperon",
+    "seed_word": "cd",
+    "strategy": "transparent_stem",
+    "family": "photometric_unit",
+    "contexts": {
+      "high": "Taking the radiance of molten platinum as the standard, the photometric congress proposed that the practical unit of luminous intensity, named after the small wax light it once equalled, be styled the [MASK]",
+      "medium": "For everyday measurement of the strength of a source the engineers adopted a convenient unit they named the [MASK]",
+      "low": "The headlamp threw a beam of forty thousand [MASK]"
+    }
+  },
+  {
+    "word": "pharma",
+    "seed_word": "med",
+    "strategy": "cross_family",
+    "family": "clipping",
+    "contexts": {
+      "high": "The students speak of reading 'med' when they mean the study of medicine; those bent instead upon the compounding and dispensing of drugs have clipped their own discipline, in the same breezy fashion, to '[MASK]'",
+      "medium": "For the science of remedies and their preparation the undergraduates have a short slang word of their own, namely [MASK]",
+      "low": "He gave up engineering to read [MASK]"
+    }
+  },
+  {
+    "word": "leech",
+    "seed_word": "med",
+    "strategy": "transparent_stem",
+    "family": "clipping",
+    "contexts": {
+      "high": "Where the modern student clips 'medicine' to a curt 'med', his forefather, in the older idiom, would have named the same healing art by the plain Saxon word for a doctor, plain '[MASK]'",
+      "medium": "The old-fashioned word for the healer's art, now nearly displaced by the clipped form, was [MASK]",
+      "low": "He had studied the old [MASK] craft at the abbey"
+    }
+  },
+  {
+    "word": "surge",
+    "seed_word": "med",
+    "strategy": "affix_swap",
+    "family": "clipping",
+    "contexts": {
+      "high": "If the man reading medicine says he is doing 'med', the man training for the knife and the operating theatre clips his own branch, by the same usage, to '[MASK]'",
+      "medium": "The hospital pupils have a curt slang name for the cutting branch of their craft, namely [MASK]",
+      "low": "He spent the morning on the [MASK] ward"
+    }
+  },
+  {
+    "word": "panni",
+    "seed_word": "multi",
+    "strategy": "cross_family",
+    "family": "prefix_clipping",
+    "contexts": {
+      "high": "Where the catalogue once boasted a 'multi' purpose tool meaning many uses, the advertisers, straining for a still grander claim, clipped the Greek for 'all' and offered a '[MASK]' purpose device",
+      "medium": "For a contrivance professing to serve every conceivable end, the copywriters seized upon the clipped prefix [MASK]",
+      "low": "The shop window promised a [MASK] gadget"
+    }
+  },
+  {
+    "word": "pluri",
+    "seed_word": "multi",
+    "strategy": "affix_swap",
+    "family": "prefix_clipping",
+    "contexts": {
+      "high": "Just as the trade press shortens 'multiple' to a bare 'multi' before its nouns, the habit of prefixing the Latin for 'several' has bred the loose clipped form '[MASK]' used on its own",
+      "medium": "For wares serving more than one office at once the labels carry, standing alone, the clipped Latin prefix [MASK]",
+      "low": "The catalogue listed it simply as a [MASK]"
+    }
+  },
+  {
+    "word": "soli",
+    "seed_word": "multi",
+    "strategy": "transparent_stem",
+    "family": "prefix_clipping",
+    "contexts": {
+      "high": "Against the 'multi' that the advertisers prefix to whatever serves many ends, they set, for the single-purpose article, the opposed clipped prefix from the Latin for 'alone', namely '[MASK]'",
+      "medium": "For a device confined to one office only the catalogue used, standing by itself, the clipped form [MASK]",
+      "low": "The instrument was strictly a [MASK] affair"
+    }
+  }
+]

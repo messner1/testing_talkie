@@ -1,0 +1,49 @@
+# --- Writeup / research prose / notes (kept local, not tracked) ---
+tt.md
+analysis/*.md
+/new_tables.md
+
+# --- Generated evaluation results ---
+# Cloze leakage outputs
+results_*.csv
+results_*.json
+*_details.csv
+*_summary.csv
+*_summary.json
+# -tron composition outputs
+tron_*_detailed.csv
+tron_*_summary.csv
+composition_*_detailed.csv
+composition_*_summary.csv
+
+# Result/output directories
+results/
+all3/
+fixed/
+typewriter/
+
+# Generated figures and their backing CSVs
+figures/
+
+# --- Environments / caches / checkpoints ---
+local/
+local_copy/
+cache/
+*.pt
+*.bin
+*.safetensors
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# --- SLURM batch scripts (environment-specific) and logs ---
+*.sbatch
+slurm-*.out
+
+# --- Editor / OS cruft ---
+.~lock.*#
+.DS_Store

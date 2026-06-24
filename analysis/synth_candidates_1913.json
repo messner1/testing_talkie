@@ -1,0 +1,486 @@
+[
+  {
+    "word": "serocrine",
+    "seed_word": "endocrine",
+    "strategy": "slot_reuse",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "The mode of secretion may be toward the outside of the body (exocrine) or toward the blood and lymph vessels ([MASK])",
+      "medium": "Where the gland discharges its product not through a duct but directly into the watery serum that bathes the tissues, the secretion is termed [MASK]",
+      "low": "He distinguished the duct-bearing type from the [MASK] type, whose elaborated material passes outward only into the surrounding fluid."
+    }
+  },
+  {
+    "word": "haemacrine",
+    "seed_word": "endocrine",
+    "strategy": "slot_reuse",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "The mode of secretion may be toward the outside of the body (exocrine) or toward the blood and lymph vessels ([MASK])",
+      "medium": "When the active principle is delivered straight into the circulating blood rather than upon a free surface, the process is best called [MASK]",
+      "low": "The ductless glands he grouped together as [MASK], since their output is carried away wholly by the vascular stream."
+    }
+  },
+  {
+    "word": "lymphacrine",
+    "seed_word": "endocrine",
+    "strategy": "slot_reuse",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "The mode of secretion may be toward the outside of the body (exocrine) or toward the blood and lymph vessels ([MASK])",
+      "medium": "A secretion conveyed away chiefly through the lymphatic channels, rather than the blood proper, might fittingly be styled [MASK]",
+      "low": "Beside the familiar duct glands he placed a [MASK] class whose product enters only the lymph."
+    }
+  },
+  {
+    "word": "intracrine",
+    "seed_word": "endocrine",
+    "strategy": "slot_reuse",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "The mode of secretion may be toward the outside of the body (exocrine) or toward the blood and lymph vessels ([MASK])",
+      "medium": "Where the cell retains and consumes its own elaborated principle, neither shedding it without nor passing it to the vessels, the habit may be named [MASK]",
+      "low": "He set apart a fourth class, the [MASK] glands, whose product never leaves the cell that forms it."
+    }
+  },
+  {
+    "word": "coelocrine",
+    "seed_word": "endocrine",
+    "strategy": "slot_reuse",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "The mode of secretion may be toward the outside of the body (exocrine) or toward the blood and lymph vessels ([MASK])",
+      "medium": "A gland that empties its product into the great body cavity rather than upon the skin or into the blood he proposed to call [MASK]",
+      "low": "The cavity-directed mode of secretion he labelled [MASK]."
+    }
+  },
+  {
+    "word": "phengon",
+    "seed_word": "photon",
+    "strategy": "slot_reuse",
+    "family": "light_energy_unit",
+    "contexts": {
+      "high": "It represents a very small amount of radiant energy and must not be confused with the quantum of energy; I propose to designate this elementary unit of light a [MASK]",
+      "medium": "For the indivisible packet of luminous stimulus discharged by a single visual fibre I shall venture to coin the name [MASK]",
+      "low": "Each elementary flash of light energy he was content to call one [MASK], reserving the word quantum for the energetic sense."
+    }
+  },
+  {
+    "word": "augon",
+    "seed_word": "photon",
+    "strategy": "slot_reuse",
+    "family": "light_energy_unit",
+    "contexts": {
+      "high": "It represents a very small amount of radiant energy and must not be confused with the quantum of energy; I propose to designate this elementary unit of light a [MASK]",
+      "medium": "The least quantity of luminous excitation capable of stirring a single retinal element I shall name the [MASK]",
+      "low": "One [MASK], in his usage, is the smallest unit of light stimulus the eye can register."
+    }
+  },
+  {
+    "word": "lampton",
+    "seed_word": "photon",
+    "strategy": "slot_reuse",
+    "family": "light_energy_unit",
+    "contexts": {
+      "high": "It represents a very small amount of radiant energy and must not be confused with the quantum of energy; I propose to designate this elementary unit of light a [MASK]",
+      "medium": "For the smallest discrete portion of visible radiation, conceived as a single grain of brightness, I would offer the name [MASK]",
+      "low": "He measured the dim source in tens of thousands of the so-called [MASK], his unit of elementary light."
+    }
+  },
+  {
+    "word": "phosgon",
+    "seed_word": "photon",
+    "strategy": "slot_reuse",
+    "family": "light_energy_unit",
+    "contexts": {
+      "high": "It represents a very small amount of radiant energy and must not be confused with the quantum of energy; I propose to designate this elementary unit of light a [MASK]",
+      "medium": "The indivisible corpuscle in which luminous energy is, on this view, parcelled out he named the [MASK]",
+      "low": "On his hypothesis light travels as a shower of discrete [MASK], each carrying a fixed portion of energy."
+    }
+  },
+  {
+    "word": "phaela",
+    "seed_word": "candela",
+    "strategy": "slot_reuse",
+    "family": "luminous_intensity_unit",
+    "contexts": {
+      "high": "It is recommended that the new unit for luminous intensity, equal to the brightness of a black body at the freezing point of platinum, shall be called the [MASK]",
+      "medium": "For the standard of luminous intensity adopted by the commission, the Latin-derived name [MASK] was put forward in preference to the older candle",
+      "low": "The committee proposed that the international measure of luminous intensity be designated the [MASK]."
+    }
+  },
+  {
+    "word": "lucela",
+    "seed_word": "candela",
+    "strategy": "slot_reuse",
+    "family": "luminous_intensity_unit",
+    "contexts": {
+      "high": "It is recommended that the new unit for luminous intensity, equal to the brightness of a black body at the freezing point of platinum, shall be called the [MASK]",
+      "medium": "To replace the cumbersome international candle, the conference recommended a fresh unit of luminous intensity to be known as the [MASK]",
+      "low": "He measured the lamp at rather more than forty of the new [MASK], the agreed unit of luminous intensity."
+    }
+  },
+  {
+    "word": "fulgela",
+    "seed_word": "candela",
+    "strategy": "slot_reuse",
+    "family": "luminous_intensity_unit",
+    "contexts": {
+      "high": "It is recommended that the new unit for luminous intensity, equal to the brightness of a black body at the freezing point of platinum, shall be called the [MASK]",
+      "medium": "The sub-committee favoured, for the new measure of luminous intensity, a name drawn from the Latin for brightness, namely the [MASK]",
+      "low": "Henceforth, they urged, the brilliance of a source should be reckoned in units of the [MASK]."
+    }
+  },
+  {
+    "word": "candora",
+    "seed_word": "candela",
+    "strategy": "slot_reuse",
+    "family": "luminous_intensity_unit",
+    "contexts": {
+      "high": "It is recommended that the new unit for luminous intensity, equal to the brightness of a black body at the freezing point of platinum, shall be called the [MASK]",
+      "medium": "A unit of luminous intensity referred to the platinum standard was proposed under the name [MASK] at the international congress",
+      "low": "Photometrists were asked to express the strength of a lamp in the newly defined [MASK]."
+    }
+  },
+  {
+    "word": "thermocrine",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "A gland whose discharge is governed chiefly by the heat of the surrounding tissue may be described as [MASK] in its mode of working",
+      "medium": "He proposed the term [MASK] for those glands whose activity rises and falls strictly with bodily temperature",
+      "low": "The warmth-driven secretory response he labelled the [MASK] reaction."
+    }
+  },
+  {
+    "word": "phyllase",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "The ferment that breaks down the green leaf-pigment in the autumn senescence he provisionally named [MASK]",
+      "medium": "A new enzyme, active upon the foliar chlorophyll and absent from etiolated tissue, was isolated and called [MASK]",
+      "low": "When the leaf yellows, an enzyme he termed [MASK] is held responsible for dismantling the pigment."
+    }
+  },
+  {
+    "word": "petralase",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "The supposed ferment by which certain bacteria etch and dissolve the surface of limestone was hypothetically designated [MASK]",
+      "medium": "He attributed the pitting of the rock to a microbial enzyme, which for convenience he called [MASK]",
+      "low": "No such stone-dissolving enzyme as [MASK] has ever been demonstrated in pure culture."
+    }
+  },
+  {
+    "word": "noctergic",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Nerve fibres that become active only in darkness, and quiescent under illumination, he described as [MASK]",
+      "medium": "The author postulated a [MASK] pathway mediating the nocturnal rise in glandular tone",
+      "low": "A class of fibres he called [MASK] was said to fire chiefly during the hours of night."
+    }
+  },
+  {
+    "word": "calorergic",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Fibres responding to and transmitting the sensation of warmth were grouped by the author under the heading [MASK]",
+      "medium": "He distinguished the cold-sensing tracts from the [MASK] tracts that convey the impression of heat",
+      "low": "The heat-conducting nerve elements he provisionally termed [MASK]."
+    }
+  },
+  {
+    "word": "selenon",
+    "seed_word": "photon",
+    "strategy": "affix_swap",
+    "family": "particle_on",
+    "contexts": {
+      "high": "The hypothetical elementary carrier of the faint lunar radiation was, half in jest, named the [MASK] by the observer",
+      "medium": "For the conjectured corpuscle of moonlight he coined the term [MASK], on the analogy of the unit of sunlight",
+      "low": "No experiment has revealed any such particle as the [MASK] he postulated."
+    }
+  },
+  {
+    "word": "frigon",
+    "seed_word": "photon",
+    "strategy": "affix_swap",
+    "family": "particle_on",
+    "contexts": {
+      "high": "He whimsically proposed that the elementary quantum of cold be called the [MASK], though cold is of course but the absence of heat",
+      "medium": "The supposed indivisible unit of the cooling influence was given the name [MASK] in his early manuscript",
+      "low": "There is, needless to say, no particle answering to the [MASK] of his speculation."
+    }
+  },
+  {
+    "word": "caloron",
+    "seed_word": "photon",
+    "strategy": "affix_swap",
+    "family": "particle_on",
+    "contexts": {
+      "high": "Should heat too be atomic, the smallest indivisible quantum of thermal energy might fitly be styled the [MASK]",
+      "medium": "For the conjectured elementary corpuscle of radiant heat he proposed, after the manner of the light unit, the name [MASK]",
+      "low": "His [MASK] was to be to heat what the unit of light is to luminous energy."
+    }
+  },
+  {
+    "word": "nephrone",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "hormone_one",
+    "contexts": {
+      "high": "The internal secretion supposed to be elaborated by the kidney and to govern blood pressure was tentatively christened [MASK]",
+      "medium": "A renal hormone, distinct from any then known, was postulated and given the provisional name [MASK]",
+      "low": "He believed the kidney to release a regulating principle he called [MASK]."
+    }
+  },
+  {
+    "word": "splenone",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "hormone_one",
+    "contexts": {
+      "high": "The conjectured internal secretion of the spleen, thought to act upon the red blood corpuscles, he named [MASK]",
+      "medium": "A hormone of splenic origin was hypothesised and provisionally termed [MASK]",
+      "low": "The active principle he supposed the spleen to liberate was styled [MASK]."
+    }
+  },
+  {
+    "word": "hepatone",
+    "seed_word": "endocrine",
+    "strategy": "affix_swap",
+    "family": "hormone_one",
+    "contexts": {
+      "high": "The supposed internal secretion of the liver, governing the storage of sugar, was given the trial name [MASK]",
+      "medium": "He spoke of a hepatic hormone, [MASK], whose deficiency he linked to disorders of the blood-sugar",
+      "low": "The regulating principle he attributed to the liver he called [MASK]."
+    }
+  },
+  {
+    "word": "endolymphone",
+    "seed_word": "endocrine",
+    "strategy": "analogical_blend",
+    "family": "hormone_one",
+    "contexts": {
+      "high": "The substance believed to regulate the composition of the inner-ear fluid was given the working name [MASK]",
+      "medium": "He spoke of a labyrinthine hormone, [MASK], as controlling the equilibrium of the endolymph",
+      "low": "The supposed chemical governor of the inner-ear fluid he called [MASK]."
+    }
+  },
+  {
+    "word": "vasocrine",
+    "seed_word": "endocrine",
+    "strategy": "analogical_blend",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "A gland that pours its product directly into the wall of a blood-vessel, rather than into the lumen, might be termed [MASK] in habit",
+      "medium": "He described a [MASK] arrangement in which the secretory cells abut immediately upon the vascular coat",
+      "low": "The mode of secretion intimate with the vessel wall he named [MASK]."
+    }
+  },
+  {
+    "word": "photergic",
+    "seed_word": "photon",
+    "strategy": "analogical_blend",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Nervous elements that are excited specifically by light and transmit a corresponding impulse were classed as [MASK]",
+      "medium": "The author proposed a [MASK] system, parallel to the others, devoted to the conduction of luminous stimuli",
+      "low": "Fibres responsive to illumination alone he grouped as [MASK]."
+    }
+  },
+  {
+    "word": "luminon",
+    "seed_word": "photon",
+    "strategy": "analogical_blend",
+    "family": "light_energy_unit",
+    "contexts": {
+      "high": "For a generalised elementary quantum of brightness, of whatever colour, the writer suggested the convenient short name [MASK]",
+      "medium": "He used the term [MASK] for the least packet of visible radiance the instrument could detect",
+      "low": "Each smallest discrete grain of brightness he was content to call a [MASK]."
+    }
+  },
+  {
+    "word": "irisone",
+    "seed_word": "endocrine",
+    "strategy": "analogical_blend",
+    "family": "hormone_one",
+    "contexts": {
+      "high": "The hormone supposed to be secreted by the iris and to govern the play of the pupil was provisionally named [MASK]",
+      "medium": "He postulated a chemical messenger of the iris, [MASK], controlling the dilation of the pupil",
+      "low": "The conjectured pupil-regulating principle he styled [MASK]."
+    }
+  },
+  {
+    "word": "ferrome",
+    "seed_word": "endocrine",
+    "strategy": "cross_family",
+    "family": "body_ome",
+    "contexts": {
+      "high": "The total complement of iron-bearing bodies within the cell was, on the analogy of older terms, designated the [MASK]",
+      "medium": "He proposed [MASK] for the aggregate of all the cell's iron-containing granules",
+      "low": "The collective of intracellular iron stores he named the [MASK]."
+    }
+  },
+  {
+    "word": "glaciome",
+    "seed_word": "endocrine",
+    "strategy": "cross_family",
+    "family": "body_ome",
+    "contexts": {
+      "high": "The entire assemblage of ice crystals locked within a frozen tissue was, somewhat fancifully, called the [MASK]",
+      "medium": "For the totality of ice bodies formed on freezing the specimen, he coined the term [MASK]",
+      "low": "The aggregate of crystalline ice in the frozen cell he styled its [MASK]."
+    }
+  },
+  {
+    "word": "sonon",
+    "seed_word": "photon",
+    "strategy": "cross_family",
+    "family": "particle_on",
+    "contexts": {
+      "high": "By analogy with the unit of light, the smallest indivisible packet of audible vibration he proposed to call the [MASK]",
+      "medium": "For the elementary quantum of sound energy registered by a single auditory fibre, the name [MASK] was suggested",
+      "low": "Each least unit of heard vibration he was pleased to term a [MASK]."
+    }
+  },
+  {
+    "word": "tidergic",
+    "seed_word": "endocrine",
+    "strategy": "cross_family",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Organisms whose rhythmic activity is keyed to the rise and fall of the tide were described as [MASK] in their physiology",
+      "medium": "He spoke of a [MASK] regulation, by which the creature's secretions ebb and flow with the sea",
+      "low": "The tide-governed bodily rhythm he labelled [MASK]."
+    }
+  },
+  {
+    "word": "tactergic",
+    "seed_word": "endocrine",
+    "strategy": "cross_family",
+    "family": "receptor_ergic",
+    "contexts": {
+      "high": "Nerve fibres conveying specifically the sense of touch, as distinct from heat or pain, were classed by the writer as [MASK]",
+      "medium": "He distinguished the pain-bearing tracts from the [MASK] tracts that carry the impression of contact",
+      "low": "The touch-conducting nervous elements he provisionally termed [MASK]."
+    }
+  },
+  {
+    "word": "saltase",
+    "seed_word": "endocrine",
+    "strategy": "cross_family",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "A hypothetical ferment supposed to liberate or transpose the mineral salts of the cell was given the homely name [MASK]",
+      "medium": "He attributed the regulation of the cell's salinity to an enzyme he called [MASK]",
+      "low": "No such salt-handling enzyme as [MASK] has been isolated."
+    }
+  },
+  {
+    "word": "duskon",
+    "seed_word": "photon",
+    "strategy": "transparent_stem",
+    "family": "particle_on",
+    "contexts": {
+      "high": "For the faint elementary unit of twilight illumination, too weak to be a full quantum of day, he half-seriously proposed the [MASK]",
+      "medium": "The least packet of light proper to the failing evening glow he named the [MASK]",
+      "low": "He reserved the word [MASK] for the smallest measure of twilight he could record."
+    }
+  },
+  {
+    "word": "warmase",
+    "seed_word": "endocrine",
+    "strategy": "transparent_stem",
+    "family": "enzyme_ase",
+    "contexts": {
+      "high": "A supposed ferment that liberates heat in the course of its action upon the substrate was given the homely name [MASK]",
+      "medium": "He attributed the local warming of the tissue to an enzyme he called [MASK]",
+      "low": "No enzyme by the name of [MASK] is known to chemistry."
+    }
+  },
+  {
+    "word": "mistone",
+    "seed_word": "endocrine",
+    "strategy": "transparent_stem",
+    "family": "hormone_one",
+    "contexts": {
+      "high": "The hypothetical internal secretion held to govern the watering of the eye and the moistness of the membranes was named [MASK]",
+      "medium": "A hormone supposed to regulate the body's surface moisture was provisionally termed [MASK]",
+      "low": "The conjectured moisture-controlling principle he styled [MASK]."
+    }
+  },
+  {
+    "word": "barocrine",
+    "seed_word": "endocrine",
+    "strategy": "transparent_stem",
+    "family": "secretion_crine",
+    "contexts": {
+      "high": "A gland whose secretory rate is set chiefly by the pressure of the blood upon it might, he suggested, be called [MASK]",
+      "medium": "He coined [MASK] for the mode of secretion responsive above all to vascular pressure",
+      "low": "The pressure-driven secretory habit he named [MASK]."
+    }
+  },
+  {
+    "word": "glowon",
+    "seed_word": "photon",
+    "strategy": "transparent_stem",
+    "family": "particle_on",
+    "contexts": {
+      "high": "For the smallest discrete portion of the soft self-luminescence of certain marine creatures he proposed the homely name [MASK]",
+      "medium": "Each least packet of that living light he was content to call a single [MASK]",
+      "low": "The faint biological radiance, he supposed, came in indivisible grains he termed the [MASK]."
+    }
+  },
+  {
+    "word": "brightela",
+    "seed_word": "candela",
+    "strategy": "transparent_stem",
+    "family": "luminous_intensity_unit",
+    "contexts": {
+      "high": "For a practical measure of luminous intensity intelligible to the ordinary workman, he half-seriously suggested the plain name [MASK]",
+      "medium": "The strength of an electric lamp, he proposed, might be rated in so many of the homely [MASK]",
+      "low": "On his scheme a strong arc-lamp would reckon several hundred of the new [MASK]."
+    }
+  },
+  {
+    "word": "macron",
+    "seed_word": "macro",
+    "strategy": "cross_family",
+    "family": "economic_scale",
+    "contexts": {
+      "high": "The management of the economy in its smallest cells, the single firm and household, he called the micro province, and that of the nation entire the [MASK] province",
+      "medium": "Beside the study of the individual market he set the study of the whole national aggregate, which he named the [MASK]",
+      "low": "He divided political economy into the small-scale and the large-scale, the latter he termed the [MASK]."
+    }
+  },
+  {
+    "word": "megaro",
+    "seed_word": "macro",
+    "strategy": "transparent_stem",
+    "family": "economic_scale",
+    "contexts": {
+      "high": "The forms and methods of economic management, both micro and [MASK]",
+      "medium": "To the small-scale economics of the firm he opposed a large-scale economics of the whole nation, for which he clipped the prefix into the noun [MASK]",
+      "low": "The economy at large, taken as a single body, was the proper field of what he called the [MASK]."
+    }
+  },
+  {
+    "word": "panomy",
+    "seed_word": "macro",
+    "strategy": "transparent_stem",
+    "family": "economic_scale",
+    "contexts": {
+      "high": "The science that treats the economic life of a whole people as a single connected system he proposed to call [MASK]",
+      "medium": "Beyond the economics of the household and the firm lies, he argued, a [MASK] of the entire commonwealth",
+      "low": "He coined [MASK] for the study of the national economy taken as one indivisible whole."
+    }
+  }
+]
