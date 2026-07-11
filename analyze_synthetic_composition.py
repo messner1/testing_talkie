@@ -19,16 +19,16 @@ from pathlib import Path
 
 import pandas as pd
 
-RESULTS = Path("results")
+RESULTS = Path("super")   # expanded super-set run (Jul 10); old small-set CSVs are in results/
 ANALYSIS = Path("analysis")
 # model -> (detailed csv, synthetic jsonl, cutoff)
 RUNS = {
     "talkie-base": (RESULTS / "composition_talkie-base_detailed.csv",
-                    Path("synthetic_1930.jsonl"), 1930),
+                    Path("synthetic_1930_super.jsonl"), 1930),
     "talkie-web": (RESULTS / "composition_talkie-web_detailed.csv",
-                   Path("synthetic_1930.jsonl"), 1930),
+                   Path("synthetic_1930_super.jsonl"), 1930),
     "typewriter": (RESULTS / "composition_typewriter_detailed.csv",
-                   Path("synthetic_1913.jsonl"), 1913),
+                   Path("synthetic_1913_super.jsonl"), 1913),
 }
 LEVELS = ["high", "medium", "low"]
 
