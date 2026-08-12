@@ -1,0 +1,139 @@
+{
+  "version": "3.0",
+  "purpose": "Group a prediction neighborhood by shared form",
+  "task": [
+    "You are shown TEN WORDS, in no meaningful order. They are candidate completions produced for a gap in a text you will not see.",
+    "Report ONE grouping: the largest set of these words linked to one another by SHARED SHAPE.",
+    "Judge the words AGAINST EACH OTHER ONLY. There is no correct answer to compare them to, and you must not try to reconstruct what the gap was. A set that works a paradigm without landing on any particular word is a perfectly ordinary case.",
+    "REPORT THE MEMBER LIST, NOT A COUNT. The size is derived from your list.",
+    "MEANING IS NOT ASKED FOR AND MUST NOT INFLUENCE THE ANSWER. Do not add a word because it belongs to the same subject as the others, and do not drop one because it does not. Shared shape is the only criterion."
+  ],
+  "visibility": {
+    "you_see": "The ten words and a table of the orthographic overlaps among them.",
+    "you_do_not_see": "The gap, the passage, which system produced these, when it was trained, or what any of this is being used to measure. Your groupings are evidence about something you cannot see, and would stop being evidence if you could."
+  },
+  "dimension_1_form": {
+    "principle": "THE OVERLAPS ARE GIVEN TO YOU. Do not scan the words for shared letters yourself; exhaustive character comparison is not something you do reliably. The table lists every pair sharing a run of three or more characters, with the shared substring and its position in each word. Work from the table. Your judgment is which of those overlaps constitute a group.",
+    "rules": [
+      "A GROUP NEEDS AT LEAST TWO MEMBERS. Report an empty group when no two words are linked by usable shared shape. Never report a group of one.",
+      "MEMBERS NEED ONLY BE LINKED THROUGH THE GROUP, NOT TO EVERY OTHER MEMBER. If A shares a run with B and B shares a different run with C, all three are one group. Follow the chain.",
+      "REPORT ONE GROUP, NEVER THE UNION OF SEVERAL. Every member must reach every other member by following shared substrings THROUGH THE GROUP. If `soundscape/soundscapes/sound` are linked and `music/musical/musique` are linked but nothing joins the two sets, the answer is three, not six. Returning the union is the single most common error on this task: over half of the large groups in a trial run merged separate sets. Before answering, check that you can walk from any member to any other.",
+      "INFLECTION THE GAP'S GRAMMAR FORCES ON EVERY CANDIDATE IS NOT A GROUP. If all ten are third-person singular verbs, or all ten are plurals, that shared ending tells you only which grammatical slot was being filled -- every candidate would carry it however it was produced. Strip it and ask what remains. If nothing remains, the group is empty and you must set form_inflection_discounted.",
+      "A PATTERN APPLIED ONCE IS NOT A PATTERN. If one candidate is simply another plus material -- `vaccine`/`vaccination`, `other`/`otherwise`, `activate`/`deactivate` -- then one word was derived from the other and nothing was applied twice. That is not a group. A group needs either one root carrying TWO different affixes (`replacement`/`displacement`, `proclitic`/`enclitic`) or one affix on TWO different roots (`synthase`/`kinase`). Note `activate`/`deactivate` is a genuine derivation and still does not qualify: the test is not whether the relation is real, but whether the pattern recurs.",
+      "DO NOT EXCLUDE A WORD FOR LOOKING WRONG. Misspellings, malformed forms and words you do not recognise are ordinary members of a form group. Shared shape is the only criterion, and a word being odd is not a reason to drop it."
+    ],
+    "kinds": {
+      "shared_stem": "a common body -- neurosis / neuro / neurotic",
+      "shared_affix": "a common ending or prefix on different roots -- paralysis / psychosis",
+      "orthographic_variant": "near-identical spellings -- telemer / telomer",
+      "same_lemma_inflection": "forms of one word -- explanation / explanations"
+    },
+    "note_on_kinds": "A GROUP WHOSE ONLY RELATION IS INFLECTION IS NOT A GROUP. `dose`/`doses`, `aim`/`aims`, `shot`/`shots`, `attack`/`attacks` are one word wearing different grammatical clothes -- one lexeme, not two candidates. If the largest set you can find is a single word and its own plural or past tense, report an empty group. The `same_lemma_inflection` type is still used, but only when inflected forms sit INSIDE a larger genuine group: `proof / proofs / proofe / proofes` is four forms because `proof` and `proofe` are different SPELLINGS, and the plurals ride along with them.",
+    "not_a_criterion": "Do not ask whether the words are morphologically well-formed, or whether a linguist would license the relation. Shared shape is the criterion."
+  },
+  "non_criteria": [
+    "WHETHER ANY OF THESE IS THE RIGHT ANSWER. You do not know the gap. Do not guess it.",
+    "WHETHER THE WORDS ARE GOOD ENGLISH. Malformed and invented forms group by shape like any others.",
+    "WHAT THE WORDS MEAN. A group of words about the same subject is not a form group unless they also share shape.",
+    "RANK OR ORDER. The order is randomized and carries nothing."
+  ],
+  "output": {
+    "form_group": "the member words, or an empty list",
+    "form_basis": "the shared substring(s) that link them \u2014 a few characters, not an explanation",
+    "form_kind": "shared_stem | shared_affix | orthographic_variant | same_lemma_inflection | none",
+    "form_inflection_discounted": "true if the inflection rule fired",
+    "rationale": "one sentence"
+  },
+  "worked_examples": [
+    {
+      "candidates": "neurosis \u00b7 neuro \u00b7 neurotic \u00b7 be \u00b7 a \u00b7 paralysis \u00b7 neuralgia \u00b7 paresis \u00b7 psychosis \u00b7 disease",
+      "form_group": [
+        "neurosis",
+        "neuro",
+        "neurotic",
+        "neuralgia"
+      ],
+      "form_basis": "neur-",
+      "form_kind": "shared_stem",
+      "why": "Two separate groups: `-sis` links paralysis/paresis/psychosis/neuralgia and nothing joins that set to the neur- set, so the answer is four, not eight. `be` and `a` are too short to link anything."
+    },
+    {
+      "candidates": "progresses \u00b7 goes \u00b7 nears \u00b7 is \u00b7 becomes \u00b7 continues \u00b7 advances \u00b7 reaches \u00b7 proceeds \u00b7 approaches",
+      "form_group": [],
+      "form_inflection_discounted": true,
+      "why": "All ten are third-person singular. Strip that and nothing is shared, so the group is empty \u2014 even though the ten words are obviously about one subject, which is not a reason to group them."
+    },
+    {
+      "candidates": "cholinegic \u00b7 acetonic \u00b7 choline \u00b7 acetylcholine \u00b7 acetylcholic \u00b7 cholic \u00b7 acetylenic \u00b7 aceto \u00b7 acetylcholinic \u00b7 acetylcholide",
+      "form_group": [
+        "cholinegic",
+        "choline",
+        "acetylcholine",
+        "acetylcholic",
+        "cholic",
+        "acetylcholinic",
+        "acetylcholide",
+        "aceto",
+        "acetonic",
+        "acetylenic"
+      ],
+      "form_basis": "chol / acetyl, chained",
+      "form_kind": "shared_stem",
+      "why": "Members chain: `acetyl` links one subset, `chol` another, and words carrying both join them into a single group \u2014 so here the answer really is all ten. The invented forms stay IN: looking wrong is not grounds for exclusion."
+    },
+    {
+      "candidates": "position \u00b7 point \u00b7 doctrine \u00b7 explanation \u00b7 party \u00b7 line \u00b7 view \u00b7 version \u00b7 interpretation \u00b7 explanations",
+      "form_group": [
+        "explanation",
+        "explanations"
+      ],
+      "form_basis": "explanation",
+      "form_kind": "same_lemma_inflection",
+      "why": "A word and its plural is a real group and is reported as one, even though most of the other words are plainly about a single subject."
+    },
+    {
+      "candidates": "collar \u00b7 white \u00b7 old \u00b7 shoulder \u00b7 neck \u00b7 one \u00b7 arm \u00b7 and \u00b7 knee \u00b7 cold",
+      "form_group": [],
+      "why": "`old`/`cold` share letters but link nothing further; a two-word accidental overlap with no chain is not a usable group."
+    },
+    {
+      "candidates": "soundscapes \u00b7 soundscape \u00b7 sound \u00b7 music \u00b7 musical \u00b7 musique \u00b7 the \u00b7 a \u00b7 ambient \u00b7 quiet",
+      "form_group": [
+        "soundscapes",
+        "soundscape",
+        "sound"
+      ],
+      "form_basis": "sound",
+      "form_kind": "shared_stem",
+      "why": "`music/musical/musique` is a second group of three linked by `musi`, but nothing joins it to the sound- set. Report the larger single group, or either if tied \u2014 never all six."
+    }
+  ],
+  "examples_are_excluded": "Items used as examples here are excluded from any agreement statistic computed against this rubric, since a judge has effectively been given their answers.",
+  "notes_for_maintainers": {
+    "one_class_design": "v3.0 drops the meaning dimension entirely. A 100-neighborhood pilot judged twice showed it did not discriminate: neighborhoods whose prompt supplied recruitable material and those whose prompt did not both scored a meaning group of 3+ at 0.959, and mean group size 6.43 vs 6.14. It was also the less stable axis (test-retest exact 0.719 vs 0.906 for form). Form discriminates at 3.38x (group size 3+) and 12x (size 5+). Dropping it also removes the interference risk the independence block existed to manage.",
+    "why_meaning_is_retained_anyway": "It is retained to be TESTED, not because it is needed. The pilot judges each neighborhood twice and measures test-retest stability per dimension. If the meaning dimension proves unstable or adds nothing beyond form, it is dropped and only the form axis is annotated.",
+    "attestation_is_no_longer_shown": "v1.0 gave the judge an attestation flag per word so it could exclude coinages from the meaning group. That is now computed downstream instead: certification (does the form group contain an unattested distinct lexeme, as opposed to an orthographic variant of an attested one) is derived from the returned form_group membership using technical_composition.flag_kind. Showing the flag risked the judge dropping coinages OUT of the form group as errors, which would remove exactly the members that certify it -- hence the explicit `DO NOT EXCLUDE A WORD FOR LOOKING WRONG` rule.",
+    "chaining_was_added_in_v2": "v1.0 did not say whether group membership was transitive. The automatic proxy uses connected components, so the rubric now states the chain rule explicitly; otherwise judge and proxy would be measuring different things and the audit between them would be meaningless.",
+    "connectivity_is_enforced_downstream": "The pilot found 8.6% of returned groups spanning more than one component of the supplied overlap graph, concentrated entirely in the large ones (0% at size 2-3, 55.6% at 6+). Code now keeps only the largest connected subset of whatever the judge returns, so the rule cannot be violated even when the instruction is ignored. Enforcement costs nothing at size 2-3 and moves the size-5 lift from 12.0x to 10.0x.",
+    "context_frame_ab": "The A+B rejudge supplies exactly two facts, chosen because neither leaks the selection variable. (A) The slot's grammatical category, taken from the TARGET word's part of speech in its own citation -- the target is the correct answer, so its category IS the slot's requirement, and it is independent of whether the prompt supplied donor material. (B) The citation year and a period band, which is the stratification variable already in the analysis rather than new information. Neither reveals whether any prompt word resembles the target, which is what the firewall protects. The passage itself is still withheld. Echo detection -- whether a candidate simply repeats a prompt word -- is computed post hoc rather than asked of the judge, so it needs no context here. CORRECTION after the first --context run: rule 1 originally said 'strip it and ask what remains', which invited exactly the wrong move. On a ten-adverb neighborhood the judge correctly set form_inflection_discounted, stripped `-ly`, and then regrouped on `-ally` -- the same grammatical fact one character deeper -- returning a group of 5 where the annotator said 2. The rule is now stated as a criterion about STEM material rather than as a stripping operation. The identically-phrased rule in dimension_1_form carries the same latent flaw but is left unchanged so the blind baseline stays comparable.",
+    "gates_added_after_second_context_run": "The first two --context runs exposed two gaps between this rubric and the automatic measure, both my error rather than the judge's. (1) note_on_kinds previously said same_lemma_inflection 'is a group like any other and is ALWAYS reported', written before the annotator ruled that shot/shots and filter/filters are both 0. The judge obeyed it, flagging infl=True on aim/aims and grouping them anyway -- the contradiction showing through. (2) There was no single-step rule at all, so activate/deactivate and other/otherwise grouped. Both gates exist in neighborhood_measure.form_group and are cited to Goldsmith (2001) and Albright & Hayes (2003); the rubric now states them. The annotator notes activate/deactivate is the borderline case and would not object to its inclusion -- it is excluded for consistency with vaccine/vaccination, not because the derivation is doubted."
+  },
+  "withheld": {
+    "do_not_add_to_the_prompt": "This judge must not be told what its output is used for. A large form group is read as evidence that the model assembled its candidates rather than recalling them, and that reading is crossed against whether the prompt supplied material to assemble from and whether the target postdates the training cutoff. Telling the judge any of this -- the framing, the labels, or the expected direction -- would let it produce the pattern rather than measure it. The rubric therefore describes a grouping task and never mentions composition, recall, scaffolding, or leakage.",
+    "certification": "Downstream, a form group is CERTIFIED when it contains a form that is unattested and types as a distinct lexeme rather than an orthographic variant. On the automatic proxy this grade separates the restricted models from the unrestricted baseline (lift over unscaffolded prompts 6.76x and 9.25x against 4.13x at group size 3) where the uncertified grade does not (2.15x, 2.46x, 2.22x). The judge is told none of this.",
+    "correlated_instruments": {
+      "risk": "Selection and outcome would both run on claude-sonnet-5. They cannot share evidence -- this judge never sees the prompt, that one never sees the predictions -- but they can share lexical priors.",
+      "required_check": "Re-run on a different model and compare before reporting the association. `--cross-check`."
+    }
+  },
+  "context_frame": {
+    "when_rendered": "Only in --context mode (the A+B rejudge). Omitted otherwise.",
+    "preamble": "Two facts about the gap are supplied. They describe the SLOT, not the passage: you are told what grammatical category the gap requires and roughly when the text was written. You are NOT shown the passage, and must not speculate about what it said.",
+    "rules": [
+      "THE SLOT'S GRAMMAR IS NOT A GROUP, AT ANY DEPTH. You are told which part of speech the gap requires. What the candidates must share, to be a group, is STEM material -- a root they have in common. If what they share is instead the grammatical marking the slot requires, it is not a group however many characters it runs to, and this INCLUDES a longer form of that marking. Where the gap requires an adverb, `actually / empirically / practically` share `-ally`, which is five characters -- but `-ally` is just `-al` plus `-ly`, the adverbial ending on adjectives that end in `-al` or `-ic`. Those words share no root at all. Do not strip the ending and then regroup on a longer version of it. Ask whether the candidates share a ROOT, not whether they share more letters.",
+      "WHEN THE SLOT'S GRAMMAR EXPLAINS EVERYTHING THEY SHARE, the group is empty and you must set form_inflection_discounted. This is a real and common answer: a set of ten adverbs, or ten plurals, or ten gerunds, is what the gap demanded and is not evidence of anything.",
+      "IN EARLY TEXT, SPELLING VARIES. You are told the approximate date. In a citation from before about 1700, unfamiliar spellings of ordinary words are the norm, not new formations: `proofe`, `marke`, `armie`, `werkes` are period spellings of words the writer already had. Do not read them as newly built forms. In a modern citation an unfamiliar form is more likely to be a genuine coinage.",
+      "THESE TWO FACTS ARE THE ONLY CONTEXT YOU HAVE. Do not infer anything else about the passage, and in particular do not speculate about whether the passage contained words resembling the candidates."
+    ]
+  }
+}

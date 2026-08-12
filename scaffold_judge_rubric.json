@@ -1,0 +1,313 @@
+{
+  "version": "1.2",
+  "name": "scaffold-judge",
+  "purpose": "Decide whether a cloze prompt supplies word-form material from which its target could be built, as distinct from merely being a context in which the target would be recognised. 'Material' here means shared letters, not licensed morphology.",
+  "notes_for_maintainers": [
+    "This file IS the operational definition. It is assembled into the judge's system prompt by scaffold_judge.py and published alongside any results computed with it.",
+    "It deliberately contains NO numeric thresholds. Earlier versions of this criterion were a stack of hand-set constants (minimum donor length, shared-character counts, edit-distance cutoffs, frequency cuts), each individually defensible and none derivable. The point of this formulation is to state the judgment in terms of what it is trying to capture.",
+    "Section 'withheld' records a finding deliberately NOT told to the judge. Do not add it: the judge is one of the instruments used to test that finding.",
+    "Changing this file changes the instrument. Bump 'version' and re-calibrate against the human labels before trusting any result computed with a new version."
+  ],
+  "framing": {
+    "why_this_matters": "A language model can arrive at a word two ways. Under retrieval it reproduces a string it has encountered. Under composition it assembles the form from word-form material available to it. The two are indistinguishable in a top-k prediction list, which is all a string-matching contamination audit inspects, but they differ in what they require of the context: composition needs pieces to build from, whereas retrieval is reachable from a purely associative cue. Note that the model doing the building has no theory of morphology \u2014 it works on strings. So should you: shared letters are the unit of analysis here, and a relation no grammarian would sanction still counts.",
+    "what_you_are_given": "A passage of text that stops mid-sentence, the target word that belongs in the gap, and an OVERLAPS table listing every passage word that shares a run of three or more consecutive letters with the target. The table is computed exhaustively by string comparison before you see it. It is complete and it is correct.",
+    "what_you_must_not_use": "You will not be shown, and must not ask for, any model's predictions, any measure of how a model performed on this item, which model produced anything, or which experimental condition the item came from. The judgment concerns the passage alone. If you could see how a model answered, the judgment could not serve as evidence about the passage."
+  },
+  "dimensions": [
+    {
+      "id": "material",
+      "order": 1,
+      "question": "Is there material in the passage that shares form with the target?",
+      "field": "material",
+      "values": [
+        "none",
+        "affix",
+        "stem",
+        "both"
+      ],
+      "definitions": {
+        "stem": "The listed run is the target's root or body \u2014 typically reported as 'start' or 'middle' of the target, and often long. Examples: hydroxyl/hydroxide sharing 'hydrox'; quantizing/quantization sharing 'quantiz'; acetylcholine/cholinergic sharing 'cholin' (middle of the donor, start of the target).",
+        "affix": "The listed run is the target's ending or prefix carried on a different root \u2014 typically reported as 'end' of both. Examples: northern/southern sharing 'thern'; classification/ordination sharing 'ation'; chromosomes/ribosome sharing 'osome'; downside/upside sharing 'side'.",
+        "both": "The table supplies one of each.",
+        "none": "The table says 'none'. This is the ONLY case where `none` is correct."
+      },
+      "guidance": [
+        "Use the reported positions to choose between `stem` and `affix`: shared at the end of both words is normally affix material; shared at the start or middle of the target is normally stem material.",
+        "A short run is still material. `tion` shared between `initiation` and `promotion` is affix material. Whether it is *informative* is a separate question, settled in dimension three, not here.",
+        "Do not require a paradigm. `classification` and `ordination` share `ation`; that is affix material even though no grammar would call them relatives.",
+        "If several overlaps are listed, pick the one that best supports building the target and name it in `donor` and `shared`. You may name more than one."
+      ],
+      "principle": "THE OVERLAPS ARE GIVEN TO YOU. Do not search the passage for shared letters yourself, and do not second-guess the table: it was produced by exact string comparison and it is exhaustive. Your job on this dimension is to CLASSIFY what is listed, not to find it. If the table lists any overlap, `material` is NOT `none`. If and only if the table says 'none', answer `none`. Material means shared letters \u2014 whether or not the run is a morpheme, whether or not the two words are relatives, whether or not a linguist would license the relation."
+    },
+    {
+      "id": "usable",
+      "order": 2,
+      "question": "Are the shared letters something a reader could operate on, or a pure accident of spelling?",
+      "field": "usable",
+      "values": [
+        "yes",
+        "no",
+        "unsure"
+      ],
+      "test": "Could a reader who knew the passage's word but not the target get from one to the other by operating on the shared portion?",
+      "worked_distinctions": [
+        {
+          "pair": "really / rally",
+          "verdict": "no",
+          "reason": "They share the letters 'ally', but really is real + ly, so 'ally' is not a part of it, and rally has no parts at all."
+        },
+        {
+          "pair": "telemer / telomer",
+          "verdict": "yes",
+          "reason": "They share almost everything, and what they share is the body of the word in both."
+        },
+        {
+          "pair": "classification / ordination",
+          "verdict": "yes",
+          "reason": "Both end in -ation, which is a real ending in both words. They are not from the same root and are not morphological relatives, and it does not matter: the letters are shared and a reader could operate on them."
+        },
+        {
+          "pair": "encryption / munition",
+          "verdict": "yes, but uninformative",
+          "reason": "Both genuinely end in -tion, which is a part of both words. But it is a part of thousands of English words and supplies nothing that narrows this particular gap. Record it as material, and let dimension three decide whether the passage did anything with it."
+        },
+        {
+          "pair": "hill / kill",
+          "verdict": "no",
+          "reason": "Both are single, unanalysable words. The shared -ill is not a constituent of either."
+        }
+      ],
+      "guidance": [
+        "The test is not whether a linguist would license the derivation.",
+        "Do not require the relation to be a productive rule of English. An ugly or malformed relation still counts if the shared portion is a real part of both words."
+      ],
+      "scope_warning": "This dimension is NARROW, and it is not a second chance to reject the overlap. Reserve `no` for a listed run that is a pure spelling coincidence: it crosses morpheme boundaries in BOTH words and the words have no relation beyond the letters \u2014 `really`/`rally` sharing 'ally', `hill`/`kill` sharing 'ill', `mother`/`other` sharing 'other'. If the run is a recognisable ending, prefix, or word-body in EITHER word, answer `yes`, even when the two words come from different families and even when the run is so common it narrows nothing. Commonness belongs to dimension three."
+    },
+    {
+      "id": "recruitment",
+      "order": 3,
+      "question": "Does the passage do anything to bring that material into relation with the gap?",
+      "field": "recruitment",
+      "values": [
+        "none",
+        "proximity",
+        "coordination",
+        "naming",
+        "contrast_analogy"
+      ],
+      "definitions": {
+        "coordination": "The gap and the donor are joined in a list or pair. Examples: 'the neutron and ___'; \"I suggest the words 'adrenergic' and ___\".",
+        "naming": "The passage is explicitly christening something, so the gap is a NAME being coined rather than an ordinary word being used. Examples: 'provisionally named the ___'; 'for which the author proposes the term ___'; 'we call this a ___'.",
+        "contrast_analogy": "The gap is set against or alongside the donor. Examples: 'an antonym to classification'; 'unlike sclerosis'; 'as with the adrenergic fibres'.",
+        "proximity": "No construction relates them, but the donor sits close enough to the gap to be plainly in play.",
+        "none": "The donor is elsewhere in the passage with nothing connecting it to the gap."
+      },
+      "guidance": [
+        "Record the strongest that applies, and quote the evidence.",
+        "Do not treat a construction as recruiting unless it relates the DONOR to the GAP. A passage may contain the word 'and' without coordinating anything relevant.",
+        "Material may be present and entirely inert. That is a normal and expected outcome."
+      ]
+    }
+  ],
+  "verdict": {
+    "field": "verdict",
+    "values": [
+      "scaffolded",
+      "not_scaffolded",
+      "unsure"
+    ],
+    "rules": {
+      "scaffolded": "The passage supplies usable material for the target, in a state where a reader working from that material could reach the target.",
+      "not_scaffolded": "There are no shared letters at all, or the shared letters are a pure spelling accident in the narrow sense of dimension two, or material is present but wholly inert \u2014 nothing in the passage brings it into relation with the gap.",
+      "unsure": "Use this rather than guessing. Record it when the material is real but you cannot tell whether it is doing any work."
+    }
+  },
+  "explicit_non_criteria": [
+    {
+      "criterion": "Whether the derivation is good English",
+      "why_excluded": "A malformed or ugly form still counts. We are asking what material is present, not whether a competent speaker would produce that word."
+    },
+    {
+      "criterion": "Whether the target is a real word",
+      "why_excluded": "Some targets are constructed. It makes no difference to this judgment."
+    },
+    {
+      "criterion": "Whether a model would actually produce the target",
+      "why_excluded": "That is the outcome being predicted. Importing it would make the judgment worthless as evidence."
+    },
+    {
+      "criterion": "A change of part of speech",
+      "why_excluded": "signifying to signifier, and quantizing to quantization, supply material regardless of the grammatical shift."
+    },
+    {
+      "criterion": "How many other words could fill the gap",
+      "why_excluded": "A gap may be loosely specified and still be scaffolded; a gap may be tightly specified with no material present at all. This is a property of the gap, not of the scaffolding, and it is recorded elsewhere."
+    },
+    {
+      "criterion": "How common or rare the donor word is",
+      "why_excluded": "Frequency is not part of the definition."
+    },
+    {
+      "criterion": "Whether the passage reads as scientific or technical",
+      "why_excluded": "Domain is recorded separately and is an outcome of the analysis, not an input to this judgment."
+    }
+  ],
+  "worked_examples": [
+    {
+      "label": "scaffolded, affix, coordination and naming",
+      "passage_tail": "...my hypothesis of chemical transmission... I suggest the words 'adrenergic' and",
+      "target": "cholinergic",
+      "expected": {
+        "material": "both",
+        "donor": "adrenergic, acetylcholine",
+        "shared": "-ergic; cholin-",
+        "usable": "yes",
+        "recruitment": "naming",
+        "verdict": "scaffolded"
+      },
+      "commentary": "Two donors. adrenergic supplies the affix and is coordinated with the gap; acetylcholine supplies the stem word-medially. The passage is explicitly coining a term.",
+      "overlaps_shown": "adrenergic shares \"ergic\""
+    },
+    {
+      "label": "scaffolded, affix, coordination",
+      "passage_tail": "...the deuteron, or deuton, as it has been called, bids fair to rival in interest its recently found cousins, the neutron and",
+      "target": "positron",
+      "expected": {
+        "material": "affix",
+        "donor": "neutron, deuteron",
+        "shared": "-on",
+        "usable": "yes",
+        "recruitment": "coordination",
+        "verdict": "scaffolded"
+      },
+      "commentary": "The -on particle series is supplied and the gap is the next member of a coordinated list.",
+      "overlaps_shown": "neutron shares \"on\""
+    },
+    {
+      "label": "scaffolded, stem, proximity only",
+      "passage_tail": "Representing the signal by certain discrete allowed levels only is called quantizing. It inherently introduces an initial error in the magnitude of the samples, giving rise to",
+      "target": "quantization",
+      "expected": {
+        "material": "stem",
+        "donor": "quantizing",
+        "shared": "quantiz-",
+        "usable": "yes",
+        "recruitment": "proximity",
+        "verdict": "scaffolded"
+      },
+      "commentary": "No construction joins them, but the stem is supplied plainly and recently. Material without a frame is still material.",
+      "overlaps_shown": "quantizing shares \"quantiz\""
+    },
+    {
+      "label": "scaffolded, affix across unrelated roots, contrast and naming",
+      "passage_tail": "Factor analysis does not result in a classification of vegetation in the ordinary sense, but in an arrangement of the vegetational data in a multi-dimensional series. For such an arrangement, there appears to be no word in English which one can use as an antonym to classification; I would like to propose the term",
+      "target": "ordination",
+      "expected": {
+        "material": "affix",
+        "donor": "classification",
+        "shared": "-ation",
+        "usable": "yes",
+        "recruitment": "contrast_analogy",
+        "verdict": "scaffolded"
+      },
+      "commentary": "The two words are not morphological relatives and share no root, but they share the ending -ation, and the passage sets the gap against the donor as its antonym while explicitly coining a term. Answering `material: none` here is the characteristic error: it applies a paradigm test the rubric does not ask for.",
+      "overlaps_shown": "classification shares \"ation\""
+    },
+    {
+      "label": "not scaffolded, spelling accident",
+      "passage_tail": "...he did not really know what to make of the crowd, and the whole affair threatened to become a",
+      "target": "rally",
+      "expected": {
+        "material": "none",
+        "donor": "",
+        "shared": "",
+        "usable": "no",
+        "recruitment": "none",
+        "verdict": "not_scaffolded"
+      },
+      "commentary": "really and rally share the letters 'ally', which is not a constituent of either word.",
+      "overlaps_shown": "none"
+    },
+    {
+      "label": "not scaffolded, inert material",
+      "passage_tail": "Originally the government attempted to prevent the use of strong encryption by private parties, and later sought controls over the export of",
+      "target": "munition",
+      "expected": {
+        "material": "affix",
+        "donor": "encryption",
+        "shared": "-tion",
+        "usable": "yes",
+        "recruitment": "none",
+        "verdict": "not_scaffolded"
+      },
+      "commentary": "Both genuinely end in -tion, so material is recorded. But nothing in the passage relates the two words, and -tion narrows nothing. Material present, wholly inert.",
+      "overlaps_shown": "encryption shares \"tion\""
+    },
+    {
+      "label": "scaffolded, stem, contrast",
+      "passage_tail": "The myelin sheath was found progressively wasted, a change quite unlike sclerosis, for which the author proposes the name",
+      "target": "myelosis",
+      "expected": {
+        "material": "both",
+        "donor": "myelin, sclerosis",
+        "shared": "myel-; -osis",
+        "usable": "yes",
+        "recruitment": "naming",
+        "verdict": "scaffolded"
+      },
+      "commentary": "Stem from myelin, affix from sclerosis, and the passage is naming the condition while contrasting it with the donor.",
+      "overlaps_shown": "myelin shares \"myel\""
+    },
+    {
+      "label": "scaffolded, affix at both ends, contrast",
+      "passage_tail": "it was generally believed that there were two main dialects, Yankee (i.e. northern) and",
+      "target": "southern",
+      "overlaps_shown": "northern shares \"thern\" (5) \u2014 end of northern, end of southern",
+      "expected": {
+        "material": "affix",
+        "donor": "northern",
+        "shared": "thern",
+        "usable": "yes",
+        "recruitment": "contrast_analogy",
+        "verdict": "scaffolded"
+      },
+      "commentary": "The table does the finding. northern and southern are a contrast pair and share a five-letter ending. Answering `material: none` here \u2014 as a judge asked to find overlaps itself did \u2014 is now impossible: the table lists one."
+    }
+  ],
+  "output_contract": {
+    "instruction": "Report the dimensions independently. Do not let a strong reading on one force the others: material can be present without recruitment, and a recruiting construction can appear with no material to recruit.",
+    "fields": {
+      "material": "none | affix | stem | both",
+      "donor": "the word or words in the passage supplying it, comma separated, or empty",
+      "shared": "the portion they share with the target, or empty",
+      "usable": "yes | no | unsure",
+      "recruitment": "none | proximity | coordination | naming | contrast_analogy",
+      "evidence": "the phrase that recruits it, quoted from the passage, or empty",
+      "verdict": "scaffolded | not_scaffolded | unsure",
+      "rationale": "one sentence, naming the material and what does or does not recruit it"
+    }
+  },
+  "withheld": {
+    "do_not_add_to_the_prompt": "Annotation of an earlier pass found that affix material behaves very differently from stem material depending on whether a construction recruits it (affix-only material recruits at 0.00 without a frame and 0.60 with one; stem material at 0.70 and 1.00). This is deliberately NOT stated to the judge, because the judge is one of the instruments used to test it. The rubric asks for material and recruitment as independent readings so that any interaction between them remains something the analysis can discover rather than something the instrument was told to produce.",
+    "postrun_check": {
+      "claim": "Affix material needs a recruiting construction; stem material does not.",
+      "source": "Hand annotation of 164 prompts plus a 40-item blind re-label: affix-only material was judged recruiting 0.00 of the time without a frame and 0.60 with one; stem material 0.70 and 1.00.",
+      "calibration_evidence": "On the 114-item calibration the judge, told nothing of this, produced 19 false positives to 3 false negatives, and 9 of the 19 were affix material accepted on proximity alone. Scoring 'stem material OR a recruiting frame' instead of the judge's own verdict raises agreement with the human from 0.807 to 0.860.",
+      "how_to_check_after_the_run": "NOT by cross-tabulating the corpus verdicts. That was the original plan and it is invalid: section 6 of this rubric defines wholly inert material as not scaffolded, so `recruitment: none -> not_scaffolded` holds by definition, and over the 50,322 corpus verdicts a lookup table on (material != none, usable, recruitment != none) reproduces 99.2% of verdicts. Cross-tabulating those fields measures the rubric, not the world. The claim is about MODEL RECALL -- whether the restricted model produced the target -- so any real test joins verdicts to recall outcomes, or to further hand annotation, via `item_id`.",
+      "why_it_is_not_in_the_prompt": "The judge is one of the instruments used to test this claim. Telling it the interaction would raise agreement while destroying the evidence: the errors reproducing the pattern is what makes them evidence. If precision later needs improving, prefer hand-truncating the accepted set to editing this rubric.",
+      "corpus_run_observation": {
+        "date": "2026-08-07",
+        "status": "FLAGGED, NOT RESOLVED -- left open deliberately for a later hand pass.",
+        "what_held": "The direction seen at calibration persists at corpus scale. Against the 114 hand labels the judge's agreement is markedly worse on affix material than on stem: affix 0.763 (12 FP, 2 FN over N=59) vs stem 0.811 (6 FP, 1 FN over N=37) and both 0.933 (N=15). Every affix false positive is the same shape -- a real shared ending on an unrelated root, accepted on proximity alone: tonight/right, knitting/plating, hypothesis/hysteresis, tended/open-ended, motor/rotor.",
+        "scale": "Corpus-wide, affix material on proximity alone is 649 items judged scaffolded at 0.792, i.e. roughly 510 accepted items sitting in the class where the judge is least reliable. Affix+frame is a further 492 at 0.876.",
+        "next_step_if_revisited": "Hand-review the judge's positive set, keyed by item_id. The join is verified: all 114 existing hand-label ids resolve against the corpus id set, so new annotation merges without re-identification. Prefer truncating the accepted set by hand to editing this rubric -- editing it would convert a finding into an instruction."
+      }
+    }
+  },
+  "calibration": {
+    "reference": "Agreement is measured against an expert annotator's independent labels on the same items.",
+    "ceiling": 0.944,
+    "ceiling_note": "That annotator's agreement with themselves, on a blind re-annotation of a balanced subset, is 0.944. A method agreeing more closely than that with a single annotator's labels is reproducing individual idiosyncrasy, not detecting scaffolding, and should be treated with suspicion rather than satisfaction.",
+    "no_ground_truth": "There is no external ground truth for this construct. Everything reported is agreement with one annotator, and the reliability of the construct itself is unestablished until a second annotator is available."
+  }
+}

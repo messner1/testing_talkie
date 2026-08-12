@@ -28,6 +28,23 @@ Outcome class per item:
   retrieval-near-miss      miss with siblings, all attested
   blank-miss               miss, no sibling
 
+TWO SCOPE RESTRICTIONS, both established by audit (see NEIGHBORHOOD_simple.md):
+
+  1. SYNTHETIC: only CUED items count.  In the super sets most words inherit a
+     family-template context written for a *different* word, so their top-10 is
+     not a response to them at all; worse, items sharing a prompt share a neighbor
+     list verbatim (750 rows -> 156 distinct prompts).  Views over synthetic data
+     are restricted to items whose prompt is used by exactly one target word.
+
+  2. REAL: the COINED/made-up flag is NOT valid on the OED cloze data.  Auditing
+     it shows it fires on scanning noise and early-modern orthography -- `caſuall`,
+     `ſtew`, `lengtli`, `blusb`, `femaie`, `commones`, `wordes`, `martiall` -- which
+     Talkie-Base emits far more than Talkie-Web (4945 vs 874 in-cutoff) purely
+     because it was trained on scanned historical text.  That is a corpus fact, not
+     composition.  Real-data views therefore report relatedness only.  The flag IS
+     valid on the synthetic sets, where the same audit returns genuine coinages
+     (`ornithinase`, `ferrinase`, `juniorist`) and no scan noise.
+
 Run:
   local/bin/python neighborhood_analysis.py            # analyses + write csv
   local/bin/python neighborhood_analysis.py --dump 20  # audit 20 neighborhoods
@@ -54,6 +71,16 @@ MODELS = [
     ("typewriter", "synthcomp_typewriter_joined.csv", "cloze_typewriter_details.csv", 1913, "restricted"),
 ]
 
+# Synthetic targets that FAILED the 2026-08-03 novelty re-screen: they have an English
+# Wiktionary entry, so they are real words, not coinages.  Folded into the attestation set
+# so they are never counted as "made-up" neighbours.  See
+# analysis/synthetic_novelty_rescreen.{csv,md}.
+RESCREEN_ATTESTED = {
+    "caloron", "citrullinase", "companioning", "faithist", "familying", "ferrome",
+    "firespace", "horson", "hydrospace", "interferase", "interferome", "medio",
+    "melatoninergic", "mistone", "panni", "rankist", "scintillon", "tyraminergic",
+}
+
 THETA = 0.34        # normalized edit-distance threshold for stem-sibling backstop
 MIN_AFFIX = 3       # min shared-suffix length for the generic affix-sibling path
 
@@ -63,7 +90,17 @@ csv.field_size_limit(10 ** 7)
 # --------------------------------------------------------------------------- #
 # Resources
 # --------------------------------------------------------------------------- #
+_RESOURCES = None
+
+
 def load_resources():
+    """Memoised. Reads four files plus WordNet and costs ~1.2s, so a caller that invokes
+    it per item turns a seconds-long job into an hours-long one -- which happened. The
+    returned structures are shared and must be treated as read-only.
+    """
+    global _RESOURCES
+    if _RESOURCES is not None:
+        return _RESOURCES
     from nltk.corpus import stopwords, wordnet as wn
     from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS as SK
 
@@ -92,8 +129,10 @@ def load_resources():
     with open(MORPH_DIR / "vocabulary.csv") as f:
         attest |= set(r["x"].strip().lower() for r in csv.DictReader(f) if r["x"].strip().isalpha())
     attest |= set(w.lower() for w in wn.all_lemma_names())
+    attest |= RESCREEN_ATTESTED
 
-    return stops, lookup, sorted(suffixes, key=len, reverse=True), attest
+    _RESOURCES = (stops, lookup, sorted(suffixes, key=len, reverse=True), attest)
+    return _RESOURCES
 
 
 # --------------------------------------------------------------------------- #
@@ -270,6 +309,12 @@ def parse_neighbors(row):
 
 
 def load_synthetic(fname):
+    """Load a joined synthetic CSV and flag each row CUED vs template-cued.
+
+    A prompt used by more than one target word at the same context level is a
+    family template written for one of them; the rest are scored against a
+    sentence that does not point at them (and share its top-10 verbatim).
+    """
     path = ANALYSIS / fname
     if not path.exists():
         return []
@@ -283,7 +328,13 @@ def load_synthetic(fname):
                 "tier": r.get("tier"), "strategy": r.get("strategy"),
                 "family": r.get("family"), "seed_word": r.get("seed_word"),
                 "context_level": r.get("context_level"),
+                "prompt": (r.get("prefix", ""), r.get("context_level", "")),
             })
+    users = defaultdict(set)
+    for r in rows:
+        users[r["prompt"]].add(r["target"])
+    for r in rows:
+        r["cued"] = len(users[r["prompt"]]) == 1
     return rows
 
 
@@ -378,14 +429,19 @@ def main():
 # --------------------------------------------------------------------------- #
 def view1_synth_nearmiss(all_syn):
     print("\n" + "=" * 78)
-    print("VIEW 1 — synthetic: relatedness density among MISSES")
+    print("VIEW 1 — synthetic: relatedness density among MISSES, CUED ITEMS ONLY")
     print("  (does the model float a cluster of RELATED forms though it missed the exact target?")
-    print("   'made-up' = related & absent from the dictionary = unleakable = composition-specific.")
-    print("   tier/strategy shown only to demonstrate the signal is INDEPENDENT of licensure.)")
+    print("   'made-up' = related & absent from the dictionary = unleakable = composition-specific")
+    print("   -- valid here, unlike on the real data; see module docstring.")
+    print("   Template-cued rows are excluded: their prompt names another word, and rows")
+    print("   sharing a prompt share a neighbor list verbatim.)")
     print("=" * 78)
     for name, syn in all_syn.items():
-        misses = [r for r in syn if r["outcome"] != "hit"]
-        print(f"\n#### {name}   (misses N={len(misses)})")
+        cued = [r for r in syn if r["cued"]]
+        misses = [r for r in cued if r["outcome"] != "hit"]
+        n_words = len({r["target"] for r in cued})
+        print(f"\n#### {name}   (cued words={n_words}, cued rows={len(cued)}, "
+              f"cued misses N={len(misses)}; excluded {len(syn)-len(cued)} template rows)")
         print(f"  {'stratum':22s} {'N':>5} {'>=1 related':>12} {'>=1 made-up':>12} "
               f"{'mean rel/nbhd':>13} {'mean filler':>12}")
         def line(label, sub):
@@ -397,19 +453,21 @@ def view1_synth_nearmiss(all_syn):
             mr = sum(r["prof"]["n_sib"] for r in sub) / n
             mf = sum(r["prof"]["filler_frac"] for r in sub) / n
             print(f"  {label:22s} {n:5d} {pct(kr,n):>12} {pct(km,n):>12} {mr:13.1f} {mf:12.2f}")
-        line("ALL", misses)
+        line("ALL cued misses", misses)
+        # context level is the dominant variable: a weak cue names nothing
+        for lvl in ("high", "medium", "low"):
+            line(f"context={lvl}", [r for r in misses if r["context_level"] == lvl])
         for tier in ("core", "floor"):
             line(f"tier={tier}", [r for r in misses if r["tier"] == tier])
-        for strat in ("slot_reuse", "affix_swap", "analogical_blend",
-                      "transparent_stem", "cross_family"):
-            line(f"strat={strat}", [r for r in misses if r["strategy"] == strat])
 
 
 def view2_outcome_signatures(all_syn, all_real):
     print("\n" + "=" * 78)
     print("VIEW 2 — outcome-class signatures (mean neighborhood profile)")
     print("=" * 78)
-    for setname, data in (("SYNTHETIC", all_syn), ("REAL post-cutoff", all_real)):
+    print("  (coinedSib is meaningful for SYNTHETIC only — on real data it tracks scan")
+    print("   noise and archaic spelling, not composition; see module docstring.)")
+    for setname, data in (("SYNTHETIC (cued only)", all_syn), ("REAL post-cutoff", all_real)):
         print(f"\n#### {setname}")
         print(f"  {'model':12s} {'outcome':16s} {'N':>6} {'filler':>7} {'stemSib':>8} "
               f"{'affixSib':>8} {'coinedSib':>9} {'distant':>8}")
@@ -417,6 +475,8 @@ def view2_outcome_signatures(all_syn, all_real):
             pool = rows
             if setname.startswith("REAL"):
                 pool = [r for r in rows if r["post"]]
+            else:
+                pool = [r for r in rows if r["cued"]]
             for oc in ("hit", "comp-near-miss", "retr-near-miss", "distant-miss", "filler-miss"):
                 sub = [r for r in pool if r["outcome"] == oc]
                 n = len(sub)
@@ -430,31 +490,48 @@ def view2_outcome_signatures(all_syn, all_real):
 
 
 def view3_base_vs_web(all_real):
+    """Paired Base-vs-Web on identical real items, restricted to items BOTH miss.
+
+    Restricting to shared misses removes the recall-rate confound: pooling hits and
+    misses lets Web's much higher post-cutoff recall inflate its neighborhood
+    statistics, since a model that lands the target also tends to surface its
+    near-variants.  The made-up/coined column is omitted here -- on real data it
+    measures scanning noise and archaic orthography (see module docstring).
+    """
     print("\n" + "=" * 78)
-    print("VIEW 3 — Base vs Web, same real post-cutoff items (paired)")
+    print("VIEW 3 — Base vs Web, identical real items, BOTH-MISS only")
+    print("  (both-miss removes the recall-rate confound; relatedness only, no made-up)")
     print("=" * 78)
-    base = {r["target"]: r for r in all_real.get("talkie-base", []) if r["post"]}
-    web = {r["target"]: r for r in all_real.get("talkie-web", []) if r["post"]}
-    common = [t for t in base if t in web]
-    print(f"  paired post-cutoff items: {len(common)}")
-    def means(getter):
-        b = sum(getter(base[t]) for t in common) / len(common) if common else 0
-        w = sum(getter(web[t]) for t in common) / len(common) if common else 0
-        return b, w
-    print(f"  {'metric':16s} {'Base':>8} {'Web':>8}  {'Δ(Base-Web)':>12}")
-    for key, lab in (("n_coined_sib", "coined sib"), ("n_attested_sib", "attested sib"),
-                     ("n_affix_sib", "affix sib"), ("n_distant", "distant"),
-                     ("filler_frac", "filler frac")):
-        b, w = means(lambda r, k=key: r["prof"][k])
-        print(f"  {lab:16s} {b:8.2f} {w:8.2f}  {b-w:12.2f}")
+    base = {(r["target"], r.get("year")): r for r in all_real.get("talkie-base", [])}
+    web = {(r["target"], r.get("year")): r for r in all_real.get("talkie-web", [])}
+
+    def missed(r):
+        return not (r["rank"] is not None and 0 < r["rank"] <= 100)
+
+    print(f"  {'stratum':20s} {'N':>7} {'related B':>11} {'related W':>11} "
+          f"{'distant B':>11} {'distant W':>11} {'filler B':>10} {'filler W':>10}")
+    for label, pred in (("in-cutoff", lambda r: r["in_cutoff"]),
+                        ("post-cutoff (all)", lambda r: r["post"]),
+                        ("post anchored", lambda r: r["anchored"]),
+                        ("post unanchored", lambda r: r["unanchored"])):
+        common = [k for k in base if k in web and pred(base[k])
+                  and missed(base[k]) and missed(web[k])]
+        if not common:
+            continue
+        def m(d, key):
+            return sum(d[k]["prof"][key] for k in common) / len(common)
+        print(f"  {label:20s} {len(common):7d} {m(base,'n_sib'):11.3f} {m(web,'n_sib'):11.3f} "
+              f"{m(base,'n_distant'):11.2f} {m(web,'n_distant'):11.2f} "
+              f"{m(base,'filler_frac'):10.2f} {m(web,'filler_frac'):10.2f}")
 
 
 def view4_reference(all_real):
     print("\n" + "=" * 78)
     print("VIEW 4 — plain reference: in-cutoff RECALLED words (ordinary retrieval)")
+    print("  (coinedSib shown but NOT interpretable on real data — scan/archaic noise)")
     print("=" * 78)
     print(f"  {'model':12s} {'N':>6} {'filler':>7} {'stemSib':>8} {'affixSib':>8} "
-          f"{'coinedSib':>9} {'distant':>8}")
+          f"{'coinedSib*':>10} {'distant':>8}")
     for name, rows in all_real.items():
         sub = [r for r in rows if r["in_cutoff"] and r["rank"] and 0 < r["rank"] <= 100]
         n = len(sub)
@@ -463,7 +540,7 @@ def view4_reference(all_real):
         def m(key):
             return sum(r["prof"][key] for r in sub) / n
         print(f"  {name:12s} {n:6d} {m('filler_frac'):7.2f} {m('n_stem_sib'):8.2f} "
-              f"{m('n_affix_sib'):8.2f} {m('n_coined_sib'):9.2f} {m('n_distant'):8.2f}")
+              f"{m('n_affix_sib'):8.2f} {m('n_coined_sib'):10.2f} {m('n_distant'):8.2f}")
 
 
 # --------------------------------------------------------------------------- #
@@ -473,7 +550,7 @@ def write_tidy(all_syn, all_real):
     out = ANALYSIS / "neighborhood_simple.csv"
     cols = ["model", "set", "target", "outcome", "rank", "filler_frac",
             "n_stem_sib", "n_affix_sib", "n_coined_sib", "n_distant",
-            "tier", "strategy", "family", "context_level",
+            "tier", "strategy", "family", "context_level", "cued",
             "post", "anchored", "unanchored", "in_cutoff"]
     n = 0
     with out.open("w", newline="") as f:
@@ -485,14 +562,14 @@ def write_tidy(all_syn, all_real):
                 w.writerow([name, "synthetic", r["target"], r["outcome"], r["rank"],
                             f"{p['filler_frac']:.3f}", p["n_stem_sib"], p["n_affix_sib"],
                             p["n_coined_sib"], p["n_distant"], r["tier"], r["strategy"],
-                            r["family"], r["context_level"], "", "", "", ""])
+                            r["family"], r["context_level"], r["cued"], "", "", "", ""])
                 n += 1
         for name, rows in all_real.items():
             for r in rows:
                 p = r["prof"]
                 w.writerow([name, "real", r["target"], r["outcome"], r["rank"],
                             f"{p['filler_frac']:.3f}", p["n_stem_sib"], p["n_affix_sib"],
-                            p["n_coined_sib"], p["n_distant"], "", "", "", "",
+                            p["n_coined_sib"], p["n_distant"], "", "", "", "", "",
                             r["post"], r["anchored"], r["unanchored"], r["in_cutoff"]])
                 n += 1
     return n
@@ -500,8 +577,8 @@ def write_tidy(all_syn, all_real):
 
 def dump_neighborhoods(all_syn, k):
     syn = all_syn.get("talkie-base", [])
-    # deterministic spread: every len/k-th item, prefer high-context
-    hi = [r for r in syn if r["context_level"] == "high"] or syn
+    # deterministic spread: every len/k-th item, prefer cued high-context
+    hi = [r for r in syn if r["context_level"] == "high" and r["cued"]] or syn
     step = max(1, len(hi) // k)
     picks = hi[::step][:k]
     for r in picks:

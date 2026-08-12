@@ -1,6 +1,7 @@
 # --- Writeup / research prose / notes (kept local, not tracked) ---
 tt.md
 analysis/*.md
+methodologies/
 /new_tables.md
 
 # --- Generated evaluation results ---
