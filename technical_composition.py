@@ -111,8 +111,22 @@ def flag_kind(target, neighbor, attest, morph):
     # 1. orthographic: non-ASCII (long s etc.), or a near-copy of the target
     if not n.isascii():
         return "ORTHOGRAPHIC"
-    if n[:1] == t[:1] and abs(len(n) - len(t)) <= 2 and NA.levenshtein(n, t) <= 2:
-        return "ORTHOGRAPHIC"
+    # A near-copy is a near-copy wherever the damage falls.  This test used to require
+    # `n[:1] == t[:1]`, which looked like a cheap guard on the edit distance but changed the
+    # answer: with the error on the FIRST character the orthographic test could not fire, the
+    # inflection test would not either, and `eustody`/custody, `begister`/register,
+    # `ntter`/utter fell through to DERIVATIONAL by elimination -- counted as evidence the
+    # model built something.  Because first-character confusions are a scan artefact, the
+    # defect tracked training-corpus scan quality: 678 of one model's derivational flags
+    # against 46 and 44 for the others.
+    if abs(len(n) - len(t)) <= 2 and NA.levenshtein(n, t) <= 2:
+        # ... except that a prefix is also a small edit at the front.  `bisexist` is `sexist`
+        # plus a morpheme, not a corruption of it.  We treat a clean edge INSERTION of two or
+        # more characters as affixation and leave it to the derivational branch; a single
+        # leading character (`ecold`, `arectum`, `knote`) is not an English prefix, and a
+        # leading DELETION (`nemy`, `tation`, `rew`) is scan damage in either direction.
+        if not (len(n) - len(t) >= 2 and n.endswith(t)):
+            return "ORTHOGRAPHIC"
     # truncations and run-ons of the target: `augmentation`->`augmenta`,
     # `subordination`->`subordina`, `remission`->`remissionand`.  These are scan
     # artefacts, not lexemes, and they are edit-far so the rule above misses them.

@@ -48,12 +48,23 @@ run on the same model.  They cannot share evidence, but they can share lexical p
 `--cross-check` re-runs on a second model; at the post-cutoff scope that costs ~$13, so
 there is no reason to report the association without it.
 
+TWO ARMS, BOUGHT SEPARATELY.  A scaffolded/not lift inside the post-cutoff arm is not the
+result: scaffolded prompts are selected for supplying morphological material, which raises
+form cohesion for ANY model, leakage or not.  talkie-web -- the unrestricted baseline --
+shows 4.25x on certification post-cutoff for exactly that reason.  The estimand is the
+difference-in-differences: that lift divided by the same lift among in-cutoff targets,
+where composition is not needed because the word is in the training data.  `--scope
+incutoff` buys the second arm; see sample_incutoff() for the draw and `--allocation` for
+why its cells are equal-n rather than a mirror of the post-cutoff ones.
+
 Run:
     local/bin/python neighborhood_judge.py --show-prompt
     local/bin/python neighborhood_judge.py --cost
     local/bin/python neighborhood_judge.py --calibrate          # against Sheet A hand labels
     local/bin/python neighborhood_judge.py --submit --scope postcutoff
     local/bin/python neighborhood_judge.py --collect all
+    local/bin/python neighborhood_judge.py --allocation         # why the in-cutoff cells are equal-n
+    local/bin/python neighborhood_judge.py --submit --scope incutoff --context
     local/bin/python neighborhood_judge.py --cross-check --model claude-opus-5
 """
 
@@ -61,6 +72,7 @@ import argparse
 import csv
 import json
 import random
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -74,12 +86,22 @@ ANALYSIS = Path("analysis")
 JUDGE = ANALYSIS / "judge_nbr"
 RUBRIC = Path("neighborhood_judge_rubric.json")
 SUBSET = ANALYSIS / "scaffold_subset.csv"
+SCAFFOLD_VERDICTS = ANALYSIS / "judge" / "verdicts.jsonl"
+INCUT_IDS = ANALYSIS / "incutoff_sample_ids.txt"
 SHEET_A = ANALYSIS / "neighborhood_A_cohesion.csv"
 HAND_LOG = ANALYSIS / "hand_labeling" / "neighborhood_A.jsonl"
 csv.field_size_limit(10 ** 7)
 
 DEFAULT_MODEL = "claude-sonnet-5"
 SEED = 20260811
+SAMPLE_SEED = 20260812   # in-cutoff draw; separate from the presentation shuffle above
+PER_CELL = 1697          # 6 cells (3 models x scaffolded/not) = 10,182, matching the
+                         # post-cutoff pass. EQUAL, not proportional: only 426 of the
+                         # 10,181 post-cutoff items are scaffolded, so mirroring those
+                         # cell sizes would put 76-90% of the difference-in-differences
+                         # variance in the newly bought arm. Equal-n sits within a few
+                         # percent of the variance optimum at every threshold and assumes
+                         # nothing about the rates. See --allocation.
 MIN_RUN = 3          # shortest shared run listed in the overlap table
 MIN_WORD = 3         # a word shorter than this cannot carry a usable run.
                      # Was 4, which hid the bare stem of a paradigm: `sex` never appeared
@@ -112,12 +134,17 @@ def attest_set():
 # --------------------------------------------------------------------------- #
 # Items
 # --------------------------------------------------------------------------- #
-def load_neighborhoods(scope="postcutoff"):
+def load_neighborhoods(scope="postcutoff", match_pos=True):
     """One row per (model, cloze item) with its ten predictions.
 
     Order is randomized per item under a fixed seed: predicted rank must not leak, and the
     hand sheet shuffles too, so judge and annotator see the same presentation.
+
+    `incutoff` is not the whole in-cutoff population (140,869 neighborhoods, ~$210) but the
+    stratified draw built by sample_incutoff().
     """
+    if scope == "incutoff":
+        return sample_incutoff(match_pos=match_pos)
     if not SUBSET.exists():
         sys.exit(f"missing {SUBSET} — run scaffold_subset.py first")
     out = []
@@ -142,6 +169,141 @@ def load_neighborhoods(scope="postcutoff"):
                     "register": (None if not yi else
                                  "early modern" if yi < 1700 else
                                  "18th-19th century" if yi < 1900 else "modern")})
+    return out
+
+
+def stem(args):
+    """Filename stem for a run: model, context frame, and scope.
+
+    Scope MUST be in the name. The post-cutoff pass and the in-cutoff arm are the two halves
+    of one difference-in-differences and are bought separately; without the tag, submitting
+    the second would overwrite the first's manifest and then its verdicts, and the batch ids
+    are the only way back for ~30 days. `postcutoff` is left untagged so the files already on
+    disk stay valid.
+    """
+    sc = getattr(args, "scope", "postcutoff")
+    return (f"{args.model}"
+            + ("_context" if getattr(args, "context", False) else "")
+            + ("" if sc == "postcutoff" else f"_{sc}"))
+
+
+_VERDICTS = None
+
+
+def scaffold_verdicts():
+    """item_id -> selection verdict, from the corpus-scale scaffold pass. Loaded once.
+
+    The in-cutoff strata ARE the selection verdicts, so this is a hard dependency: without
+    it there is no scaffolded/not contrast to match.
+    """
+    global _VERDICTS
+    if _VERDICTS is None:
+        if not SCAFFOLD_VERDICTS.exists():
+            sys.exit(f"missing {SCAFFOLD_VERDICTS} — the in-cutoff sample is stratified on "
+                     "the selection verdict; run scaffold_judge.py --collect first")
+        _VERDICTS = {}
+        for line in SCAFFOLD_VERDICTS.read_text().splitlines():
+            if line.strip():
+                j = json.loads(line)
+                _VERDICTS[j["item_id"]] = j["judge"].get("verdict")
+    return _VERDICTS
+
+
+def _largest_remainder(shares, total):
+    """Integer quotas summing exactly to `total`, apportioned by `shares`."""
+    raw = {k: total * s for k, s in shares.items()}
+    q = {k: int(v) for k, v in raw.items()}
+    for k in sorted(raw, key=lambda k: (-(raw[k] - q[k]), k))[:total - sum(q.values())]:
+        q[k] += 1
+    return q
+
+
+def sample_incutoff(per_cell=PER_CELL, match_pos=True, verbose=True):
+    """The in-cutoff arm of the difference-in-differences, drawn to match the post-cutoff pass.
+
+    Stratified on model x selection verdict, EQUAL n per cell (see PER_CELL), and within a
+    cell matched to the post-cutoff arm's slot-POS distribution for the same verdict. POS is
+    matched because we have direct evidence it drives this measure -- an adverb slot forces
+    `-ly` on every candidate -- and the two arms differ (NOUN 0.617 in-cutoff vs 0.681
+    post-cutoff). It is covariate balance, not a model of the outcome; `--no-pos-match`
+    turns it off so the sensitivity is checkable.
+
+    `unsure` selection verdicts are excluded, as they are on the post-cutoff side.
+
+    The drawn ids are persisted to INCUT_IDS and reloaded thereafter, so submit, collect and
+    analysis see one fixed sample even if the verdict file is ever regenerated.
+    """
+    # nbr_id is NOT unique: 8 ids collide across the 151,050 rows, and scaffold_subset.csv
+    # carries 3 exactly duplicated rows (item P9f3850af, `shoot`, once per model). The sample
+    # is therefore keyed on (nbr_id, item_id, model) and the pool de-duplicated on it, so a
+    # duplicated row cannot be drawn -- or paid for -- twice.
+    def key(i):
+        return (i["nbr_id"], i["item_id"], i["model"])
+
+    seen, every = set(), []
+    for i in load_neighborhoods("all"):
+        if key(i) not in seen:
+            seen.add(key(i))
+            every.append(i)
+
+    if INCUT_IDS.exists():
+        want = [tuple(l.split("\t")) for l in INCUT_IDS.read_text().splitlines() if l.strip()]
+        idx = {key(i): i for i in every}
+        missing = [k for k in want if k not in idx]
+        if missing:
+            sys.exit(f"{INCUT_IDS} lists {len(missing)} rows that no longer resolve "
+                     f"(e.g. {missing[0]}) — the subset changed under the sample; "
+                     "delete the file to redraw")
+        if verbose:
+            print(f"  in-cutoff sample: {len(want)} neighborhoods (reloaded from {INCUT_IDS})")
+        return [idx[k] for k in want]
+
+    v = scaffold_verdicts()
+    arms = ("scaffolded", "not_scaffolded")
+    pool, post = defaultdict(list), defaultdict(Counter)
+    for i in every:
+        vd = v.get(i["item_id"])
+        if vd not in arms:
+            continue
+        if i["is_future"] == "1":
+            post[vd][i["slot_pos"]] += 1
+        else:
+            pool[(i["model"], vd)].append(i)
+
+    rng = random.Random(SAMPLE_SEED)
+    out, short = [], []
+    for cell in sorted(pool):
+        cand = sorted(pool[cell], key=key)
+        if not match_pos:
+            rng.shuffle(cand)
+            take = cand[:per_cell]
+        else:
+            tot = sum(post[cell[1]].values())
+            quota = _largest_remainder({p: c / tot for p, c in post[cell[1]].items()}, per_cell)
+            by = defaultdict(list)
+            for i in cand:
+                by[i["slot_pos"]].append(i)
+            take, spare = [], []
+            for p, bucket in by.items():
+                rng.shuffle(bucket)
+                n = quota.get(p, 0)
+                take += bucket[:n]
+                spare += bucket[n:]
+                if n > len(bucket):
+                    short.append((cell, p, n, len(bucket)))
+            rng.shuffle(spare)                      # backfill any unfillable POS quota
+            take += spare[:per_cell - len(take)]
+        if len(take) < per_cell:
+            short.append((cell, "*", per_cell, len(take)))
+        out += take
+    if verbose:
+        print(f"  in-cutoff sample: {len(out)} neighborhoods across {len(pool)} cells "
+              f"({per_cell}/cell, pos-matched={match_pos})")
+        for cell, p, want, got in short:
+            print(f"    ! {cell[0]}/{cell[1]} {p}: wanted {want}, pool had {got} — backfilled")
+    INCUT_IDS.write_text("".join("\t".join(key(i)) + "\n" for i in out))
+    if verbose:
+        print(f"    ids written to {INCUT_IDS}")
     return out
 
 
@@ -407,7 +569,7 @@ def mode_show_prompt(args):
     sp = system_prompt(load_rubric())
     print(sp)
     print(f"\n--- {len(sp)} chars ≈ {len(sp)//4} tokens ---", file=sys.stderr)
-    items = load_neighborhoods(args.scope)
+    items = load_neighborhoods(args.scope, args.match_pos)
     if items:
         print("\n=== example user message ===\n", file=sys.stderr)
         print(user_message(items[0]), file=sys.stderr)
@@ -689,23 +851,74 @@ def cheap_form_group(words, min_run=MIN_RUN):
     return best if len(best) >= 2 else []
 
 
-def certified(form_group, target):
-    """Does the group contain a form that had to be assembled?
+UNDERWOOD = Path("cache/underwood")
+UNDERWOOD_URL = ("https://raw.githubusercontent.com/tedunderwood/DataMunging/master/"
+                 "rulesets/{}.txt")
+_DOCUMENTED = None
 
-    Unattested AND typed as a distinct lexeme rather than an orthographic variant of an
-    attested word. The typing is what keeps scan noise and period spellings (proofe,
-    cholinegic) from counting as evidence of assembly, while admitting acetylcholide and
-    hepton. Computed, never judged -- the judge never sees attestation.
+
+def documented():
+    """Forms with published provenance as an OCR error or a historical spelling.
+
+    Underwood's DataMunging rulesets (2013), built for English after 1700 against
+    HathiTrust: `CorrectionRules.txt` maps ~98k OCR'd and variant forms to their correction
+    with a corpus frequency (`fudden`->sudden, `roſes`->roses, `harium`->barium), and
+    `VariantSpellings.txt` maps ~4k historical spellings to modern (`easie`->easy,
+    `finde`->find). Long-s is covered directly.
+
+    This is the POSITIVE test the certification cascade previously lacked. `flag_kind`
+    decided by elimination -- orthographic, else inflection, else "the model built it" --
+    so every failure of two negative tests defaulted to the reading that inflates the claim.
+    A published lexicon says instead: this form is a known corruption of that word.
     """
-    import technical_composition as TC
-    _, morph, _, att = resources()
-    for w in form_group or []:
-        wl = w.lower()
-        if wl in att:
-            continue
-        if TC.flag_kind(target, wl, att, morph) == "DERIVATIONAL":
-            return True
-    return False
+    global _DOCUMENTED
+    if _DOCUMENTED is None:
+        if not (UNDERWOOD / "CorrectionRules.txt").exists():
+            sys.exit(f"missing {UNDERWOOD}/ — run --fetch-rulesets")
+        d = {}
+        for line in (UNDERWOOD / "CorrectionRules.txt").read_text(errors="replace").splitlines():
+            p = line.split("\t")
+            if len(p) >= 2 and p[0]:
+                d[p[0].lower()] = "ocr"
+        toks = [t for t in re.split(r"[\t\n]", (UNDERWOOD / "VariantSpellings.txt")
+                                    .read_text(errors="replace")) if t]
+        for i in range(0, len(toks) - 1, 2):
+            d.setdefault(toks[i].lower(), "spelling")
+        _DOCUMENTED = d
+    return _DOCUMENTED
+
+
+def mode_fetch_rulesets(args):
+    import urllib.request
+    UNDERWOOD.mkdir(parents=True, exist_ok=True)
+    for name in ("CorrectionRules", "VariantSpellings"):
+        dst = UNDERWOOD / f"{name}.txt"
+        urllib.request.urlretrieve(UNDERWOOD_URL.format(name), dst)
+        print(f"  {dst}  {sum(1 for _ in dst.open(errors='replace')):>7} lines")
+
+
+def certified(form_group, target=None):
+    """Does the group contain a form the model could not have retrieved?
+
+    A member is certifying when it is (a) absent from the attestation set and (b) not
+    DOCUMENTED as an OCR error or a historical spelling. Nothing else is asked of it.
+
+    This replaces a per-word type judgement (`technical_composition.flag_kind`: is this a
+    distinct lexeme or an orthographic variant?) that was measured and dropped. It removed
+    23-40% of certifications, model-correlated with the most heavily scanned model losing
+    most, while moving no difference-in-differences point estimate by more than 8% -- it
+    bought variance and nothing else. It was also the wrong shape for the construct: the
+    unit of this measure is the GROUP, licensed at set-level surprisal over two or more
+    distinct lexemes, and a per-word variant/lexeme call imports a word-level assumption
+    into a set-level construct. What morphological decomposability is needed is already
+    enforced by group membership, before certification is consulted.
+
+    `target` is accepted and ignored; the rule is target-independent. Kept so callers that
+    pass it keep working.
+    """
+    att = attest_set()
+    doc = documented()
+    return any(w.lower() not in att and w.lower() not in doc for w in form_group or [])
 
 
 def pilot_sample(n, scope="postcutoff"):
@@ -872,7 +1085,7 @@ def mode_validate_cheap(args):
     form size at each threshold -- and then the test that decides it: whether substituting
     the cheap measure changes a lift the paper would print.
     """
-    path = JUDGE / f"verdicts_{args.model}.jsonl"
+    path = JUDGE / f"verdicts_{stem(args)}.jsonl"
     if not path.exists():
         sys.exit(f"missing {path} — run --submit then --collect all first")
     rows = [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
@@ -932,12 +1145,206 @@ def mode_validate_cheap(args):
             print(f"  {m:<14}{lab:<14}{jl:>9.2f}x{cl:>9.2f}x")
 
 
+def mode_did(args):
+    """The estimand: the scaffolded/not lift post-cutoff, over the same lift in-cutoff.
+
+    A lift inside the post-cutoff arm alone is not evidence of composition. Scaffolded
+    prompts are SELECTED for supplying morphological material, so they raise form cohesion
+    for any model whatever its cutoff -- talkie-web, which has seen the post-cutoff words,
+    shows a large one. Dividing by the in-cutoff lift removes whatever the selection
+    criterion does mechanically, and leaves what is specific to targets the model could not
+    have seen.
+
+    Confidence intervals are delta-method on the log scale, summing (1-p)/np over the four
+    cells; the DiD is a ratio of ratios, so log space is where it is symmetric.
+    """
+    import math
+
+    arms = {}
+    for arm, sc in (("post", "postcutoff"), ("in", "incutoff")):
+        p = JUDGE / f"verdicts_{args.model}_context{'' if sc == 'postcutoff' else '_' + sc}.jsonl"
+        if not p.exists():
+            sys.exit(f"missing {p} — both arms are needed; --submit --scope {sc} --context")
+        arms[arm] = [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
+
+    v = scaffold_verdicts()
+    # the verdict records do not carry `register`; join it back from the item table
+    band = {(i["nbr_id"], i["item_id"], i["model"]): i["register"]
+            for i in load_neighborhoods("all")}
+    cell = defaultdict(Counter)
+    reg = defaultdict(Counter)
+    for arm, rows in arms.items():
+        for r in rows:
+            vd = v.get(r["item_id"])
+            if vd not in ("scaffolded", "not_scaffolded"):
+                continue
+            fn = form_size(r["judge"], r["words"])
+            c = cell[(r["model"], arm, vd)]
+            c["n"] += 1
+            c["cert"] += certified(r["judge"].get("form_group") or [], r["target"])
+            for k in (2, 3, 5):
+                c[f"f{k}"] += fn >= k
+            g = reg[(arm, band.get((r["nbr_id"], r["item_id"], r["model"])) or "unknown")]
+            g["n"] += 1
+            g["f2"] += fn >= 2
+
+    models = sorted({m for m, _, _ in cell})
+    measures = [("certified", "cert")] + [(f"form>={k}", f"f{k}") for k in (2, 3, 5)]
+
+    print(f"\n  cells\n")
+    print(f"  {'model':<14}{'arm':<6}{'verdict':<16}{'n':>6}" +
+          "".join(f"{lab:>11}" for lab, _ in measures))
+    for m in models:
+        for arm in ("post", "in"):
+            for vd in ("scaffolded", "not_scaffolded"):
+                c = cell[(m, arm, vd)]
+                print(f"  {m:<14}{arm:<6}{vd:<16}{c['n']:>6}" +
+                      "".join(f"{c[f]:>6} {c[f]/c['n']:>4.2f}" for _, f in measures))
+
+    def lift(m, arm, f):
+        a, b = cell[(m, arm, "scaffolded")], cell[(m, arm, "not_scaffolded")]
+        if not a[f] or not b[f]:
+            return None, None
+        return (a[f]/a["n"]) / (b[f]/b["n"]), sum(
+            (1 - c[f]/c["n"]) / c[f] for c in (a, b))
+
+    print(f"\n  difference-in-differences  =  post-cutoff lift / in-cutoff lift\n")
+    print(f"  {'model':<14}{'measure':<12}{'post lift':>11}{'in lift':>10}"
+          f"{'DiD':>9}{'95% CI':>18}")
+    for m in models:
+        for lab, f in measures:
+            lp, vp = lift(m, "post", f)
+            li, vi = lift(m, "in", f)
+            if lp is None or li is None:
+                print(f"  {m:<14}{lab:<12}{'—':>11}{'—':>10}{'—':>9}{'zero cell':>18}")
+                continue
+            did = lp / li
+            se = math.sqrt(vp + vi)
+            lo, hi = did * math.exp(-1.96 * se), did * math.exp(1.96 * se)
+            star = "  *" if lo > 1 else ""
+            print(f"  {m:<14}{lab:<12}{lp:>10.2f}x{li:>9.2f}x{did:>8.2f}x"
+                  f"{f'[{lo:.2f}, {hi:.2f}]':>18}{star}")
+
+    print("\n  * CI excludes 1.  `certified` = a group member that is unattested AND not "
+          "documented\n    as an OCR error or historical spelling (Underwood rulesets); "
+          "`form>=k` is the same\n    measure with certification removed entirely -- the "
+          "most inclusive reading.")
+
+    # The per-model DiD is still not clean. Post-cutoff targets differ from in-cutoff ones in
+    # ways scaffolding can interact with -- they are rarer, later, more technical -- and that
+    # interaction survives the DiD. It applies to every model regardless of cutoff, which is
+    # what talkie-web is in the design to absorb: it has seen the post-cutoff words, so
+    # whatever DiD it shows is the part that is not composition.
+    if "talkie-web" in models:
+        print(f"\n  triple difference — DiD over talkie-web's, the leaked baseline\n")
+        print(f"  {'model':<14}{'measure':<12}{'DiD':>8}{'web DiD':>10}{'ratio':>9}"
+              f"{'95% CI':>18}")
+        for m in models:
+            if m == "talkie-web":
+                continue
+            for lab, f in measures:
+                num = [lift(m, a, f) for a in ("post", "in")]
+                den = [lift("talkie-web", a, f) for a in ("post", "in")]
+                if any(x[0] is None for x in num + den):
+                    continue
+                dm, dw = num[0][0]/num[1][0], den[0][0]/den[1][0]
+                se = math.sqrt(sum(x[1] for x in num + den))
+                r = dm / dw
+                lo, hi = r * math.exp(-1.96*se), r * math.exp(1.96*se)
+                print(f"  {m:<14}{lab:<12}{dm:>7.2f}x{dw:>9.2f}x{r:>8.2f}x"
+                      f"{f'[{lo:.2f}, {hi:.2f}]':>18}{'  *' if lo > 1 else ''}")
+    # The best-powered contrast in the design, and it uses no scaffolding at all. Restrict to
+    # UNSCAFFOLDED neighborhoods and ask whether form cohesion survives the cutoff. A model
+    # that has the post-cutoff words in training has no reason to lose cohesion crossing it;
+    # a model that does not must fall back on whatever it can assemble. Cells are in the
+    # thousands, so unlike the triple difference this is not power-bound.
+    print(f"\n  cohesion across the cutoff, UNSCAFFOLDED neighborhoods only\n")
+    print(f"  {'model':<14}{'measure':<10}{'in-cutoff':>11}{'post-cutoff':>13}"
+          f"{'ratio':>8}{'95% CI':>17}")
+    for m in models:
+        for k in (2, 3, 5):
+            a, b = cell[(m, "in", "not_scaffolded")], cell[(m, "post", "not_scaffolded")]
+            if not a[f"f{k}"] or not b[f"f{k}"]:
+                continue
+            pa, pb = a[f"f{k}"]/a["n"], b[f"f{k}"]/b["n"]
+            r = pb / pa
+            se = math.sqrt((1-pa)/a[f"f{k}"] + (1-pb)/b[f"f{k}"])
+            print(f"  {m:<14}{'form>=' + str(k):<10}{pa:>11.3f}{pb:>13.3f}{r:>8.2f}"
+                  f"{f'[{r*math.exp(-1.96*se):.2f}, {r*math.exp(1.96*se):.2f}]':>17}")
+
+    print(f"\n  measurement check — does the judge group differently by date band?\n")
+    print(f"  {'arm':<6}{'register':<22}{'n':>7}{'form>=2':>10}")
+    for (arm, r) in sorted(reg):
+        g = reg[(arm, r)]
+        print(f"  {arm:<6}{r:<22}{g['n']:>7}{g['f2']/g['n']:>10.3f}")
+
+
+def mode_allocation(args):
+    """Why the in-cutoff cells are equal-n: where the DiD variance would sit either way.
+
+    The post-cutoff arm is already bought in full -- all 426 scaffolded post-cutoff items
+    exist and all were judged -- so its precision is fixed and cannot be improved at any
+    price. The only question is how to spend the matching budget so the NEW arm does not
+    become the bottleneck. Mirroring the post-cutoff cell sizes does exactly that.
+    """
+    import math
+
+    path = JUDGE / f"verdicts_{args.model}_context.jsonl"
+    if not path.exists():
+        sys.exit(f"missing {path} — the post-cutoff pass is the reference arm")
+    v = scaffold_verdicts()
+    cell = defaultdict(Counter)
+    for line in path.read_text().splitlines():
+        if not line.strip():
+            continue
+        r = json.loads(line)
+        vd = v.get(r["item_id"])
+        if vd not in ("scaffolded", "not_scaffolded"):
+            continue
+        c = cell[(r["model"], vd)]
+        c["n"] += 1
+        fn = form_size(r["judge"], r["words"])
+        for k in (2, 3, 5):
+            c[f"f{k}"] += fn >= k
+
+    def var(n, k):                       # delta-method variance of log(k/n)
+        p = k / n
+        return (1 - p) / (n * p) if 0 < p < 1 else float("inf")
+
+    models = sorted({m for m, _ in cell})
+    print(f"\n  post-cutoff arm as judged ({sum(c['n'] for c in cell.values())} items)\n")
+    print(f"  {'model':<14}{'arm':<16}{'n':>6}{'f>=2':>7}{'f>=3':>7}{'f>=5':>7}")
+    for m in models:
+        for a in ("scaffolded", "not_scaffolded"):
+            c = cell[(m, a)]
+            print(f"  {m:<14}{a:<16}{c['n']:>6}"
+                  + "".join(f"{c[f'f{k}']:>7}" for k in (2, 3, 5)))
+
+    print(f"\n  share of difference-in-differences variance landing in the in-cutoff arm\n")
+    print(f"  {'allocation':<26}{'form>=2':>10}{'form>=3':>10}{'form>=5':>10}")
+    plans = {"proportional mirror": {(m, a): cell[(m, a)]["n"] for m in models
+                                     for a in ("scaffolded", "not_scaffolded")},
+             f"equal-n ({PER_CELL}/cell)": {(m, a): PER_CELL for m in models
+                                            for a in ("scaffolded", "not_scaffolded")}}
+    for lab, alloc in plans.items():
+        row = []
+        for k in (2, 3, 5):
+            post = sum(var(cell[c]["n"], cell[c][f"f{k}"]) for c in cell)
+            # in-cutoff rates are unknown; assume each cell's post-cutoff not_scaffolded rate
+            inc = sum(var(alloc[c], alloc[c] * cell[(c[0], "not_scaffolded")][f"f{k}"]
+                          / cell[(c[0], "not_scaffolded")]["n"]) for c in alloc)
+            row.append(inc / (post + inc))
+        print(f"  {lab:<26}" + "".join(f"{x:>9.1%} " for x in row))
+    print(f"\n  totals: proportional {sum(plans['proportional mirror'].values())}, "
+          f"equal-n {sum(plans[f'equal-n ({PER_CELL}/cell)'].values())}")
+
+
 def mode_cost(args):
     rub = load_rubric()
-    items = load_neighborhoods(args.scope)
-    sp = system_prompt(rub)
+    items = load_neighborhoods(args.scope, args.match_pos)
+    sp = system_prompt(rub, args.context)
     sys_tok = len(sp) // 4
-    per = len(user_message(items[0])) // 4 if items else 120
+    per = len(user_message(items[0], args.context)) // 4 if items else 120
     print(f"\n  rubric ≈ {sys_tok} tokens; {args.scope} scope = {len(items)} neighborhoods\n")
     print(f"  {'model':<22}{'caches?':>9}{'batch':>10}{'realtime':>11}")
     for m, (pin, pout) in sorted(SJ.PRICES.items()):
@@ -955,7 +1362,7 @@ def mode_submit(args):
     from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
 
     rub = load_rubric()
-    items = load_neighborhoods(args.scope)
+    items = load_neighborhoods(args.scope, args.match_pos)
     cl = SJ.client()
     print(f"  pre-warming the rubric cache ...")
     warm = request_params(rub, items[0], args.model, args.effort, args.context)
@@ -970,8 +1377,7 @@ def mode_submit(args):
                                             args.context))) + 256
     shard = max(1, min(20000, int(150 * 1024 * 1024 / per_req)))
     JUDGE.mkdir(parents=True, exist_ok=True)
-    man_path = JUDGE / (f"batches_{args.model}"
-                        + ("_context" if args.context else "") + ".json")
+    man_path = JUDGE / f"batches_{stem(args)}.json"
     ids = []
 
     def save():
@@ -1002,8 +1408,7 @@ def mode_submit(args):
 
 def mode_collect(args):
     cl = SJ.client()
-    man_path = JUDGE / (f"batches_{args.model}"
-                        + ("_context" if args.context else "") + ".json")
+    man_path = JUDGE / f"batches_{stem(args)}.json"
     if args.collect == "all":
         if not man_path.exists():
             sys.exit(f"no manifest at {man_path}")
@@ -1023,8 +1428,7 @@ def mode_collect(args):
         print(f"\n  {len(pending)} batch(es) still running — nothing written")
         return
 
-    out = JUDGE / (f"verdicts_{args.model}"
-                   + ("_context" if getattr(args, "context", False) else "") + ".jsonl")
+    out = JUDGE / f"verdicts_{stem(args)}.jsonl"
     n, failed = 0, []
     with open(out, "w") as fh:
         for bid in batch_ids:
@@ -1112,7 +1516,17 @@ def main():
     ap.add_argument("--cross-check", action="store_true",
                     help="compare this --model's verdicts against the default model's")
     ap.add_argument("--model", default=DEFAULT_MODEL, choices=sorted(SJ.PRICES))
-    ap.add_argument("--scope", default="postcutoff", choices=["postcutoff", "all"])
+    ap.add_argument("--scope", default="postcutoff",
+                    choices=["postcutoff", "incutoff", "all"])
+    ap.add_argument("--no-pos-match", dest="match_pos", action="store_false",
+                    help="draw the in-cutoff sample without matching the post-cutoff "
+                         "slot-POS distribution (sensitivity check)")
+    ap.add_argument("--fetch-rulesets", action="store_true",
+                    help="download Underwood's DataMunging rulesets into cache/underwood/")
+    ap.add_argument("--did", action="store_true",
+                    help="the difference-in-differences across both arms (the estimand)")
+    ap.add_argument("--allocation", action="store_true",
+                    help="show why the in-cutoff cells are equal-n rather than proportional")
     ap.add_argument("--n", type=int, default=CALIB_N)
     ap.add_argument("--heldout", action="store_true",
                     help="score only the held-out items (rubric frozen)")
@@ -1123,7 +1537,13 @@ def main():
                     choices=["off", "low", "medium", "high"])
     args = ap.parse_args()
 
-    if args.show_prompt:
+    if args.fetch_rulesets:
+        mode_fetch_rulesets(args)
+    elif args.did:
+        mode_did(args)
+    elif args.allocation:
+        mode_allocation(args)
+    elif args.show_prompt:
         mode_show_prompt(args)
     elif args.calibration_set:
         mode_calibration_set(args)

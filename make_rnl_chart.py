@@ -10,8 +10,9 @@ models *despite* different cutoffs.
 Typewriter is deliberately set apart visually (hatched bars, its own colour, its
 cutoff in the legend) because it is a different model trained to a different
 boundary (1913 vs 1930) and tested over a different past/future split of the same
-50 350-sample cloze set. The per-model cutoff and future-sample count are printed
-in an annotation box so the normalization is not mistaken for "same experiment".
+50 350-sample cloze set. The per-model cutoff carried in the legend keeps the
+normalization from being mistaken for "same experiment"; the per-model past /
+future sample counts are echoed to stdout rather than drawn on the figure.
 
 All numbers are read straight from results/cloze_<model>_summary.json (produced
 by evals/metrics.compute_cloze_summary); nothing is recomputed here.
@@ -88,20 +89,9 @@ def main():
                  fontweight="bold")
     ax.set_xticks(x)
     ax.set_xticklabels([f"k={k}" for k in ks])
-    ax.set_ylim(0, 1.5)  # headroom so the annotation box clears the tall Web bars
+    ax.set_ylim(0, 1.5)  # headroom above the tall Web bars
     ax.legend(fontsize=10, loc="upper left", framealpha=0.95)
     ax.grid(True, alpha=0.3, axis="y")
-
-    # Annotation: make the differing cutoff / past-future split explicit so the
-    # normalization is read correctly.
-    lines = ["model            cutoff   past / future samples"]
-    for name in names:
-        d = data[name]
-        lines.append(f"{name:<15} {d['cutoff']}    {d['past']:>6} / {d['future']:<5}")
-    note = "\n".join(lines)
-    ax.text(0.985, 0.97, note, transform=ax.transAxes, fontsize=8.5,
-            va="top", ha="right", family="monospace",
-            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.85))
 
     FIGURES.mkdir(exist_ok=True)
     out = FIGURES / "rnl_comparison_3models.png"
@@ -109,6 +99,11 @@ def main():
     plt.savefig(out, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"saved {out}")
+    # the cutoff / past-future split no longer appears on the figure, so echo it here
+    print("\nmodel            cutoff   past / future samples")
+    for name in names:
+        d = data[name]
+        print(f"{name:<15} {d['cutoff']}    {d['past']:>6} / {d['future']:<5}")
     # echo the table we plotted
     print("\nRNL by k:")
     print("  k     " + "  ".join(f"{n:>12}" for n in names))
