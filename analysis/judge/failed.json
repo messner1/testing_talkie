@@ -1,0 +1,142 @@
+[
+  {
+    "idx": 60,
+    "target": "bubble",
+    "reason": "no text block"
+  },
+  {
+    "idx": 1692,
+    "target": "precipitate",
+    "reason": "no text block"
+  },
+  {
+    "idx": 7748,
+    "target": "handler",
+    "reason": "no text block"
+  },
+  {
+    "idx": 9398,
+    "target": "aerosol",
+    "reason": "no text block"
+  },
+  {
+    "idx": 694,
+    "target": "rescue",
+    "reason": "no text block"
+  },
+  {
+    "idx": 913,
+    "target": "tomato",
+    "reason": "unparseable JSON"
+  },
+  {
+    "idx": 2168,
+    "target": "technician",
+    "reason": "no text block"
+  },
+  {
+    "idx": 1444,
+    "target": "lymphocyte",
+    "reason": "no text block"
+  },
+  {
+    "idx": 7583,
+    "target": "exogenous",
+    "reason": "unparseable JSON"
+  },
+  {
+    "idx": 1380,
+    "target": "infect",
+    "reason": "no text block"
+  },
+  {
+    "idx": 14455,
+    "target": "leprosy",
+    "reason": "no text block"
+  },
+  {
+    "idx": 19687,
+    "target": "overlay",
+    "reason": "unparseable JSON"
+  },
+  {
+    "idx": 11035,
+    "target": "particulate",
+    "reason": "no text block"
+  },
+  {
+    "idx": 17261,
+    "target": "vegetative",
+    "reason": "unparseable JSON"
+  },
+  {
+    "idx": 15580,
+    "target": "puff",
+    "reason": "no text block"
+  },
+  {
+    "idx": 19046,
+    "target": "infective",
+    "reason": "no text block"
+  },
+  {
+    "idx": 23141,
+    "target": "set",
+    "reason": "no text block"
+  },
+  {
+    "idx": 28809,
+    "target": "plus",
+    "reason": "no text block"
+  },
+  {
+    "idx": 22101,
+    "target": "manner",
+    "reason": "no text block"
+  },
+  {
+    "idx": 20454,
+    "target": "rhesus",
+    "reason": "no text block"
+  },
+  {
+    "idx": 32201,
+    "target": "sound",
+    "reason": "no text block"
+  },
+  {
+    "idx": 32060,
+    "target": "server",
+    "reason": "unparseable JSON"
+  },
+  {
+    "idx": 30136,
+    "target": "biological",
+    "reason": "no text block"
+  },
+  {
+    "idx": 32690,
+    "target": "virus",
+    "reason": "no text block"
+  },
+  {
+    "idx": 49146,
+    "target": "normal",
+    "reason": "no text block"
+  },
+  {
+    "idx": 43411,
+    "target": "point",
+    "reason": "no text block"
+  },
+  {
+    "idx": 41123,
+    "target": "tent",
+    "reason": "no text block"
+  },
+  {
+    "idx": 46252,
+    "target": "market",
+    "reason": "no text block"
+  }
+]

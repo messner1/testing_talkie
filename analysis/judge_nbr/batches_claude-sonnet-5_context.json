@@ -1,0 +1,9 @@
+{
+  "model": "claude-sonnet-5",
+  "scope": "postcutoff",
+  "n_items": 10181,
+  "shard_size": 13322,
+  "batch_ids": [
+    "msgbatch_01HtJrPfnHoCXs9Yxx5ykRq1"
+  ]
+}

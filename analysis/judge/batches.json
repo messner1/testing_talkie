@@ -1,0 +1,14 @@
+{
+  "model": "claude-sonnet-5",
+  "prefiltered": false,
+  "n_items": 50350,
+  "shard_size": 9906,
+  "batch_ids": [
+    "msgbatch_017HV76Ezkdc1Byf6NYuzi4v",
+    "msgbatch_01BmRC7dPkHNZosfqQFjaQoi",
+    "msgbatch_01H29q5YvcfcHiaNiNHfBNyD",
+    "msgbatch_014K9ouBH5kdEpjp8FJtZ8FV",
+    "msgbatch_01Rw4CmoB5vTun5XKgdLoGrG",
+    "msgbatch_01SVtvxDaeVUDo6ghwfaSZPu"
+  ]
+}
