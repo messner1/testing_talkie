@@ -174,7 +174,7 @@ def freq_dex(word, brown):
     return math.log10(brown[word.lower()] + 1)
 
 
-def screen(candidates, donor, target, attest, brown, reject):
+def screen(candidates, donor, target, attest, brown, reject, ranked=False):
     """Best admissible replacement for `donor` among `candidates`, or None.
 
     The screen is the same whatever proposed the candidates, which is the point: the
@@ -213,6 +213,14 @@ def screen(candidates, donor, target, attest, brown, reject):
         scored.append((gap, surface))
     if not scored:
         return None
+    # An in-context proposer returns candidates best-first, and that ordering encodes
+    # sense disambiguation the screen cannot recover. Re-sorting by frequency proximity
+    # threw it away: `degree` in "a new degree of freedom" took `sort` over the better
+    # candidates because `sort` sat closer in the Brown band. Frequency is a filter, not
+    # a ranker -- honour the proposer's order and take the first admissible candidate.
+    # WordNet's ordering carries no such signal, so the fallback still ranks by gap.
+    if ranked:
+        return scored[0][1]
     scored.sort()
     return scored[0][1]
 
@@ -229,7 +237,7 @@ def choose_substitute(donor, target, attest, brown, reject, proposals=None):
     probe. In-context proposals come from `--submit`/`--collect`.
     """
     if proposals:
-        got = screen(proposals, donor, target, attest, brown, reject)
+        got = screen(proposals, donor, target, attest, brown, reject, ranked=True)
         if got:
             return got
     pos = donor_pos(donor)
@@ -288,8 +296,12 @@ def delete_evidence(prefix, evidence, donor):
     out = re.sub(r"\s+", " ", "".join(keep)).strip()
     if out != prefix and ok(out):
         return out, "clause_fallback"
-    pat = re.compile(r"\b" + re.escape(donor) + r"\b\s*", re.IGNORECASE)
-    return re.sub(r"\s+", " ", pat.sub("", prefix)).strip(), "word_only_fallback"
+    # No word-only fallback. Excising the bare donor leaves the sentence ungrammatical
+    # ("introducing a new of freedom"), and a DIR arm that damages grammar measures
+    # sensitivity to broken syntax rather than to the missing donor -- the same confound
+    # that excluded the `move` arm. An item with no clean deletion is reported as
+    # deletion-ineligible and still contributes to the substitution and placebo arms.
+    return None, "no_clean_deletion"
 
 
 def pick_placebo(prefix, donor, target, attest, brown, stops, reject):
@@ -417,6 +429,10 @@ def build(limit=None):
             continue
         sub_prefix, n_sub = substitute_all(prefix, donor, rep)
 
+        # Per-arm availability: an item missing a clean deletion still carries the
+        # substitution (DIR) and placebo (INV) arms. Arms are analysed per arm anyway,
+        # so the alternative -- dropping the item outright -- would discard two good
+        # observations to preserve a uniform n that the statistics never require.
         del_prefix, del_how = delete_evidence(prefix, j.get("evidence", ""), donor)
 
         pw, prep = pick_placebo(prefix, donor, target, attest, brown, stops, reject)
@@ -433,11 +449,11 @@ def build(limit=None):
             "placebo_word": pw, "placebo_substitute": prep,
             "delete_method": del_how,
             "prefix": prefix,
-            "contexts": {
-                "donor_substituted": sub_prefix,
-                "donor_deleted": del_prefix,
-                "placebo": pl_prefix,
-            },
+            "contexts": {k: v for k, v in (
+                ("donor_substituted", sub_prefix),
+                ("donor_deleted", del_prefix),
+                ("placebo", pl_prefix),
+            ) if v},
         })
     return built, skipped, reject
 
