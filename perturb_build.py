@@ -462,11 +462,11 @@ Additional constraints specific to this task:
   - the replacement must share NO run of three or more letters with the FORBIDDEN word
   - keep the grammatical form of the original word (tense, number, part of speech)
   - prefer a word that would be unremarkable in English of the period shown
-  - do NOT explain, and do NOT reuse the original word
+  - do not reuse the original word
 
 Return JSON only: {"candidates": ["word1", "word2", "word3", "word4", "word5"]}
 Order them best first. Give five where you can; give fewer rather than pad with words
-that break the sentence."""
+that break the sentence. Do not include internal or system XML tags in your response."""
 
 
 def propose_prompt(item):
@@ -487,12 +487,25 @@ def mode_submit(args):
     from anthropic.types.messages.batch_create_params import Request
 
     items = locate_donors(limit=args.limit)
+    if args.only_missing:
+        have = set(load_proposals())
+        items = [it for it in items if it["item_id"] not in have]
+        print(f"--only-missing: {len(items)} items still need proposals")
     if not items:
         sys.exit("no items with a located donor")
     cl = anthropic.Anthropic()
+    # max_tokens caps THINKING PLUS RESPONSE TEXT, and on claude-opus-5 thinking is on
+    # by default -- omitting the parameter runs adaptive, a reversal from Opus 4.8/4.7
+    # where omitting it meant no thinking. The first run set max_tokens=300 with no
+    # thinking field, so reasoning consumed the budget and the JSON truncated before its
+    # closing brace on 351 of 360 items. Thinking is disabled here (this is a synonym
+    # lookup, and the 9 collected results were already high quality) and the ceiling is
+    # raised far past what the output needs. `disabled` is valid only at effort `high`
+    # or below on this model; `high` is the default, so it is not set explicitly.
     reqs = [Request(custom_id=f"item-{i}",
                     params=MessageCreateParamsNonStreaming(
-                        model=PROPOSE_MODEL, max_tokens=300,
+                        model=PROPOSE_MODEL, max_tokens=2000,
+                        thinking={"type": "disabled"},
                         system=PROPOSE_SYSTEM,
                         messages=[{"role": "user", "content": propose_prompt(it)}]))
             for i, it in enumerate(items)]
@@ -506,33 +519,115 @@ def mode_submit(args):
     print("collect with: local/bin/python perturb_build.py --collect")
 
 
+def parse_candidates(text):
+    """(candidates, reason). Reason is None on success.
+
+    Tries strict JSON first, then a brace-balanced scan that tolerates a preamble, then
+    a bare list. Every failure names itself: the first version of this collector dropped
+    351 of 360 items through three silent `continue`s, so nothing here fails quietly.
+    """
+    if not text.strip():
+        return None, "empty_text"
+    for m in re.finditer(r"\{", text):
+        depth = 0
+        for i in range(m.start(), len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(text[m.start():i + 1])
+                    except json.JSONDecodeError:
+                        break
+                    c = obj.get("candidates")
+                    if isinstance(c, list) and c:
+                        return [str(x) for x in c], None
+                    break
+    m = re.search(r"\[([^\[\]]*)\]", text, re.S)
+    if m:
+        got = [w.strip().strip('"\'') for w in m.group(1).split(",")]
+        got = [w for w in got if w and w.isalpha()]
+        if got:
+            return got, None
+    if "{" in text and "}" not in text:
+        return None, "truncated_json"
+    return None, "unparseable"
+
+
+def _iter_results(cl, man):
+    for bid in man["batch_ids"]:
+        st = cl.messages.batches.retrieve(bid)
+        if st.processing_status != "ended":
+            sys.exit(f"batch {bid} is {st.processing_status}, not ended")
+        for res in cl.messages.batches.results(bid):
+            yield res
+
+
+def mode_diagnose(args):
+    """Re-read an already-billed batch and report why results were lost. Costs nothing."""
+    import anthropic
+    man = json.loads(PROPOSE_MANIFEST.read_text())
+    cl = anthropic.Anthropic()
+    kinds, stops, blocks, reasons = Counter(), Counter(), Counter(), Counter()
+    samples = []
+    for res in _iter_results(cl, man):
+        kinds[res.result.type] += 1
+        if res.result.type != "succeeded":
+            continue
+        msg = res.result.message
+        stops[getattr(msg, "stop_reason", "?")] += 1
+        for b in msg.content:
+            blocks[b.type] += 1
+        text = "".join(b.text for b in msg.content if b.type == "text")
+        cands, why = parse_candidates(text)
+        reasons["parsed_ok" if cands else (why or "unparseable")] += 1
+        if not cands and len(samples) < 3:
+            samples.append((res.custom_id, getattr(msg, "stop_reason", "?"),
+                            [b.type for b in msg.content], repr(text[:400])))
+    print(f"manifest: {man['n_items']} items, batches {man['batch_ids']}")
+    for label, c in (("result.type", kinds), ("stop_reason", stops),
+                     ("content blocks", blocks), ("parse outcome", reasons)):
+        print(f"\n{label}:")
+        for k, v in c.most_common():
+            print(f"  {str(k):28} {v}")
+    for cid, stop, btypes, text in samples:
+        print(f"\n--- {cid}  stop={stop}  blocks={btypes}\n{text}")
+
+
 def mode_collect(args):
     import anthropic
     man = json.loads(PROPOSE_MANIFEST.read_text())
     cl = anthropic.Anthropic()
     order = man["item_ids"]
-    got = 0
+    rows, failures = {}, []
+    for res in _iter_results(cl, man):
+        idx = int(res.custom_id.split("-")[1])
+        iid = order[idx]
+        if res.result.type != "succeeded":
+            failures.append((iid, f"result_{res.result.type}"))
+            continue
+        msg = res.result.message
+        text = "".join(b.text for b in msg.content if b.type == "text")
+        cands, why = parse_candidates(text)
+        if not cands:
+            failures.append((iid, f"{why}|stop={getattr(msg,'stop_reason','?')}"))
+            continue
+        rows[iid] = cands
+    # Merge rather than truncate: a partial collect must never destroy a good earlier one.
+    rows = {**load_proposals(), **rows}
+    PROPOSALS.parent.mkdir(parents=True, exist_ok=True)
     with PROPOSALS.open("w") as fh:
-        for bid in man["batch_ids"]:
-            st = cl.messages.batches.retrieve(bid)
-            if st.processing_status != "ended":
-                sys.exit(f"batch {bid} is {st.processing_status}, not ended")
-            for res in cl.messages.batches.results(bid):
-                if res.result.type != "succeeded":
-                    continue
-                idx = int(res.custom_id.split("-")[1])
-                text = "".join(b.text for b in res.result.message.content
-                               if b.type == "text")
-                m = re.search(r"\{.*\}", text, re.S)
-                if not m:
-                    continue
-                try:
-                    cands = json.loads(m.group(0)).get("candidates", [])
-                except json.JSONDecodeError:
-                    continue
-                fh.write(json.dumps({"item_id": order[idx], "candidates": cands}) + "\n")
-                got += 1
-    print(f"wrote {PROPOSALS} ({got} of {len(order)} items)")
+        for iid, c in rows.items():
+            fh.write(json.dumps({"item_id": iid, "candidates": c}) + "\n")
+    print(f"wrote {PROPOSALS} ({len(rows)} of {len(order)} items)")
+    if failures:
+        print(f"\n{len(failures)} not collected:")
+        for reason, n in Counter(r for _, r in failures).most_common():
+            print(f"  {reason:40} {n}")
+        fp = PROPOSALS.parent / "collect_failures.txt"
+        fp.write_text("\n".join(f"{i}\t{r}" for i, r in failures))
+        print(f"  ids written to {fp}")
 
 
 def load_proposals():
@@ -556,8 +651,14 @@ def main():
     ap.add_argument("--submit", action="store_true",
                     help="submit in-context substitute proposals as a batch")
     ap.add_argument("--collect", action="store_true", help="collect proposal batch")
+    ap.add_argument("--diagnose", action="store_true",
+                    help="re-read an already-billed batch and report losses; costs nothing")
+    ap.add_argument("--only-missing", action="store_true",
+                    help="submit only items absent from proposals.jsonl")
     args = ap.parse_args()
 
+    if args.diagnose:
+        return mode_diagnose(args)
     if args.submit:
         return mode_submit(args)
     if args.collect:
