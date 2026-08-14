@@ -68,7 +68,13 @@ SCAFFOLD_VERDICTS = ANALYSIS / "judge" / "verdicts.jsonl"
 
 MIN_OVERLAP = 3          # a shared run of this length is what the judge calls material
 MIN_CONTENT_LEN = 4      # below this a word is not a placebo candidate
-FREQ_BAND_DEX = 1.0      # allowed |log10| gap between donor and substitute frequency
+# Allowed |log10| gap between the original word's Brown frequency and its replacement's.
+# 1.0 dex rejected 1,030 candidates -- the largest single cause of screen failure -- on a
+# 1M-word 1961 corpus where most period and technical vocabulary sits at or near zero
+# count, so the band was measuring corpus sparsity as much as frequency mismatch. 1.5 dex
+# still excludes a rare-for-common swap (the thing the control exists to prevent) while
+# recovering items the corpus simply has no evidence about.
+FREQ_BAND_DEX = 1.5
 
 
 # --------------------------------------------------------------------------- #
@@ -172,6 +178,19 @@ def donor_pos(word):
 def freq_dex(word, brown):
     import math
     return math.log10(brown[word.lower()] + 1)
+
+
+_BROWN = None
+
+
+def brown_freq():
+    """Memoised Brown frequency distribution. Building it costs ~2s."""
+    global _BROWN
+    if _BROWN is None:
+        from nltk.probability import FreqDist
+        from nltk.corpus import brown as brown_corpus
+        _BROWN = FreqDist(w.lower() for w in brown_corpus.words())
+    return _BROWN
 
 
 def screen(candidates, donor, target, attest, brown, reject, ranked=False):
@@ -304,19 +323,18 @@ def delete_evidence(prefix, evidence, donor):
     return None, "no_clean_deletion"
 
 
-def pick_placebo(prefix, donor, target, attest, brown, stops, reject):
-    """A non-donor content word, matched to the donor and substituted the same way.
+def placebo_word(prefix, donor, target, brown, stops):
+    """The non-donor content word the INV arm will replace, or None.
 
-    Matched on part of speech and frequency band so the INV arm perturbs a comparable
-    amount of the prompt. Words sharing form with the target are excluded -- they are
-    potential donors themselves, and editing one would be a second DIR arm wearing an
-    INV label.
+    Chosen deterministically and independently of whether a replacement exists, so the
+    word can be named in a proposal request before any substitute is known. Matched to
+    the donor on part of speech and frequency so the placebo perturbs a comparable amount
+    of the prompt. Words sharing form with the target are excluded -- they are potential
+    donors themselves, and editing one would be a second DIR arm wearing an INV label.
     """
     pos = donor_pos(donor)
-    toks = re.findall(r"[A-Za-z]+", prefix)
-    seen = set()
-    cands = []
-    for w in toks:
+    seen, cands = set(), []
+    for w in re.findall(r"[A-Za-z]+", prefix):
         lw = w.lower()
         if lw in seen or lw in stops or len(lw) < MIN_CONTENT_LEN:
             continue
@@ -326,13 +344,29 @@ def pick_placebo(prefix, donor, target, attest, brown, stops, reject):
         if donor_pos(lw) != pos:
             continue
         cands.append(lw)
-    cands.sort(key=lambda w: abs(freq_dex(w, brown) - freq_dex(donor, brown)))
-    for w in cands:
-        rep = choose_substitute(w, target, attest, brown, reject)
-        if rep:
-            return w, rep
-    reject["no_placebo_candidate"] += 1
-    return None, None
+    if not cands:
+        return None
+    cands.sort(key=lambda w: (abs(freq_dex(w, brown) - freq_dex(donor, brown)), w))
+    return cands[0]
+
+
+def pick_placebo(prefix, donor, target, attest, brown, stops, reject, proposals=None):
+    """(word, replacement) for the INV arm, or (None, None).
+
+    The INV arm is what licenses reading the two DIR arms as anything other than
+    sensitivity to being edited at all, so it goes through the same in-context proposer
+    and the same screen as the donor substitution. Building it from the WordNet fallback
+    -- the path measured to produce wrong-sense substitutes -- undercut both DIR arms
+    rather than just weakening this one.
+    """
+    w = placebo_word(prefix, donor, target, brown, stops)
+    if not w:
+        reject["no_placebo_candidate"] += 1
+        return None, None
+    rep = choose_substitute(w, target, attest, brown, reject, proposals)
+    if not rep:
+        return None, None
+    return w, rep
 
 
 # --------------------------------------------------------------------------- #
@@ -406,9 +440,7 @@ def build(limit=None):
     from nltk.corpus import stopwords
     stops = set(stopwords.words("english"))
     attest = NJ.attest_set()
-    from nltk.probability import FreqDist
-    from nltk.corpus import brown as brown_corpus
-    brown = FreqDist(w.lower() for w in brown_corpus.words())
+    brown = brown_freq()
 
     items = locate_donors(limit=limit)
     proposals = load_proposals()
@@ -423,7 +455,7 @@ def build(limit=None):
         donor = row["donor"]
 
         rep = choose_substitute(donor, target, attest, brown, reject,
-                                proposals.get(iid))
+                                proposals.get((iid, "donor")))
         if not rep:
             skipped.append((iid, "no_admissible_substitute"))
             continue
@@ -435,7 +467,8 @@ def build(limit=None):
         # observations to preserve a uniform n that the statistics never require.
         del_prefix, del_how = delete_evidence(prefix, j.get("evidence", ""), donor)
 
-        pw, prep = pick_placebo(prefix, donor, target, attest, brown, stops, reject)
+        pw, prep = pick_placebo(prefix, donor, target, attest, brown, stops, reject,
+                                proposals.get((iid, "placebo")))
         if not pw:
             skipped.append((iid, "no_placebo"))
             continue
@@ -485,16 +518,33 @@ Order them best first. Give five where you can; give fewer rather than pad with 
 that break the sentence. Do not include internal or system XML tags in your response."""
 
 
-def propose_prompt(item):
-    return (f"PASSAGE (ends where a word was removed):\n...{item['prefix'][-320:]}\n\n"
-            f"WORD TO REPLACE: {item['donor']}\n"
-            f"FORBIDDEN (share no 3-letter run with this): {item['target']}\n\n"
-            f"Give replacements for {item['donor']!r} that keep the passage coherent.")
+def propose_prompt(t):
+    return (f"PASSAGE (ends where a word was removed):\n...{t['prefix'][-320:]}\n\n"
+            f"WORD TO REPLACE: {t['word']}\n"
+            f"FORBIDDEN (share no 3-letter run with this): {t['target']}\n\n"
+            f"Give replacements for {t['word']!r} that keep the passage coherent.")
 
 
-def propose_targets(built_partial):
-    """Items needing a proposal: everything in the frozen sample with a located donor."""
-    return built_partial
+def proposal_targets(limit=None):
+    """Every (item, role) pair needing proposals, in a stable order.
+
+    Both arms that substitute a word go through the same proposer and the same screen,
+    so they are requested together: one submit covers the donor for the DIR arm and the
+    placebo word for the INV arm. Keyed by role as well as item because a single item
+    needs two different words replaced, and a flat item_id key would collide.
+    """
+    from nltk.corpus import stopwords
+    stops = set(stopwords.words("english"))
+    brown = brown_freq()
+    out = []
+    for it in locate_donors(limit=limit):
+        out.append({"item_id": it["item_id"], "role": "donor", "word": it["donor"],
+                    "prefix": it["prefix"], "target": it["target"]})
+        pw = placebo_word(it["prefix"], it["donor"], it["target"], brown, stops)
+        if pw:
+            out.append({"item_id": it["item_id"], "role": "placebo", "word": pw,
+                        "prefix": it["prefix"], "target": it["target"]})
+    return out
 
 
 def mode_submit(args):
@@ -502,13 +552,15 @@ def mode_submit(args):
     from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
     from anthropic.types.messages.batch_create_params import Request
 
-    items = locate_donors(limit=args.limit)
+    items = proposal_targets(limit=args.limit)
     if args.only_missing:
         have = set(load_proposals())
-        items = [it for it in items if it["item_id"] not in have]
-        print(f"--only-missing: {len(items)} items still need proposals")
+        items = [t for t in items if (t["item_id"], t["role"]) not in have]
+    print(f"{len(items)} (item, role) pairs need proposals: "
+          + ", ".join(f"{r}={sum(1 for t in items if t['role'] == r)}"
+                      for r in ("donor", "placebo")))
     if not items:
-        sys.exit("no items with a located donor")
+        sys.exit("nothing to request")
     cl = anthropic.Anthropic()
     # max_tokens caps THINKING PLUS RESPONSE TEXT, and on claude-opus-5 thinking is on
     # by default -- omitting the parameter runs adaptive, a reversal from Opus 4.8/4.7
@@ -529,7 +581,7 @@ def mode_submit(args):
     b = cl.messages.batches.create(requests=reqs)
     PROPOSE_MANIFEST.write_text(json.dumps(
         {"model": PROPOSE_MODEL, "n_items": len(items), "batch_ids": [b.id],
-         "item_ids": [it["item_id"] for it in items]}, indent=2))
+         "keys": [[t["item_id"], t["role"]] for t in items]}, indent=2))
     print(f"submitted {len(reqs)} proposal requests -> {b.id}")
     print(f"manifest: {PROPOSE_MANIFEST}")
     print("collect with: local/bin/python perturb_build.py --collect")
@@ -611,42 +663,52 @@ def mode_diagnose(args):
         print(f"\n--- {cid}  stop={stop}  blocks={btypes}\n{text}")
 
 
+def manifest_keys(man):
+    """(item_id, role) per request index. `item_ids` is the pre-placebo manifest form."""
+    if "keys" in man:
+        return [tuple(k) for k in man["keys"]]
+    return [(i, "donor") for i in man["item_ids"]]
+
+
 def mode_collect(args):
     import anthropic
     man = json.loads(PROPOSE_MANIFEST.read_text())
     cl = anthropic.Anthropic()
-    order = man["item_ids"]
+    order = manifest_keys(man)
     rows, failures = {}, []
     for res in _iter_results(cl, man):
         idx = int(res.custom_id.split("-")[1])
-        iid = order[idx]
+        key = order[idx]
         if res.result.type != "succeeded":
-            failures.append((iid, f"result_{res.result.type}"))
+            failures.append((key, f"result_{res.result.type}"))
             continue
         msg = res.result.message
         text = "".join(b.text for b in msg.content if b.type == "text")
         cands, why = parse_candidates(text)
         if not cands:
-            failures.append((iid, f"{why}|stop={getattr(msg,'stop_reason','?')}"))
+            failures.append((key, f"{why}|stop={getattr(msg,'stop_reason','?')}"))
             continue
-        rows[iid] = cands
+        rows[key] = cands
     # Merge rather than truncate: a partial collect must never destroy a good earlier one.
     rows = {**load_proposals(), **rows}
     PROPOSALS.parent.mkdir(parents=True, exist_ok=True)
     with PROPOSALS.open("w") as fh:
-        for iid, c in rows.items():
-            fh.write(json.dumps({"item_id": iid, "candidates": c}) + "\n")
-    print(f"wrote {PROPOSALS} ({len(rows)} of {len(order)} items)")
+        for (iid, role), c in rows.items():
+            fh.write(json.dumps({"item_id": iid, "role": role, "candidates": c}) + "\n")
+    got = Counter(role for _, role in rows)
+    print(f"wrote {PROPOSALS} ({len(rows)} pairs: "
+          + ", ".join(f"{r}={got[r]}" for r in ("donor", "placebo")) + ")")
     if failures:
         print(f"\n{len(failures)} not collected:")
         for reason, n in Counter(r for _, r in failures).most_common():
             print(f"  {reason:40} {n}")
         fp = PROPOSALS.parent / "collect_failures.txt"
-        fp.write_text("\n".join(f"{i}\t{r}" for i, r in failures))
-        print(f"  ids written to {fp}")
+        fp.write_text("\n".join(f"{i}\t{role}\t{r}" for (i, role), r in failures))
+        print(f"  keys written to {fp}")
 
 
 def load_proposals():
+    """{(item_id, role): candidates}. Rows without a role predate the placebo arm."""
     if not PROPOSALS.exists():
         return {}
     out = {}
@@ -654,7 +716,7 @@ def load_proposals():
         for line in fh:
             if line.strip():
                 r = json.loads(line)
-                out[r["item_id"]] = r["candidates"]
+                out[(r["item_id"], r.get("role", "donor"))] = r["candidates"]
     return out
 
 
