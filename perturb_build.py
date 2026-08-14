@@ -32,16 +32,21 @@ and every rejection is counted:
 
   * shares no substring of 3+ characters with the target  -- the point of the arm; a
     substitute that still overlaps the target has not removed the scaffold
-  * attested in the period lexicon, in the exact surface form used  -- doubles as the
-    grammaticality gate, since an inflected form we cannot attest is one we cannot
-    confidently place in the sentence
-  * same WordNet part of speech as the donor  -- a noun-for-verb swap changes the
-    syntax, not just the form material
-  * within one order of magnitude of the donor's Brown frequency  -- a rare-for-common
-    swap changes how predictable the region is
+  * attested in the period lexicon, as given or as a lemma  -- a period-plausibility
+    check. It is deliberately NOT the grammaticality gate: the proposer sees the
+    sentence and returns the surface form that fits the slot, which is a judgement about
+    this passage rather than something a spelling rule can supply
+  * within 1.5 orders of magnitude of the original's Brown frequency  -- a
+    rare-for-common swap changes how predictable the region is
+  * for the placebo, a word that really occurs in the passage and is not the donor
 
-Items with no admissible substitute are REPORTED, not forced. A forced bad substitute
-silently converts a DIR arm into a grammaticality probe.
+A model-authored deletion must additionally be a genuine deletion: every token of the
+result appears in the original, in order. A paraphrase fails that subsequence test, so
+the arm cannot quietly become "the model rewrote the sentence".
+
+Items with no admissible substitute are REPORTED, not forced, and every rejection is
+counted. A forced bad substitute silently converts a DIR arm into a grammaticality
+probe.
 
 Emits composition-format JSONL (one record per item, one context per arm, each ending
 in [MASK]) plus a metadata sidecar. evals/composition.load_test_cases keys its dict on
@@ -175,6 +180,15 @@ def donor_pos(word):
     return None
 
 
+def attested(word, attest):
+    """Period plausibility: the word itself, or its lemma, is in the attestation set."""
+    w = word.lower()
+    if w in attest:
+        return True
+    stem, suf = split_inflection(w)
+    return bool(suf) and stem in attest
+
+
 def freq_dex(word, brown):
     import math
     return math.log10(brown[word.lower()] + 1)
@@ -193,7 +207,8 @@ def brown_freq():
     return _BROWN
 
 
-def screen(candidates, donor, target, attest, brown, reject, ranked=False):
+def screen(candidates, donor, target, attest, brown, reject, ranked=False,
+           pre_inflected=False):
     """Best admissible replacement for `donor` among `candidates`, or None.
 
     The screen is the same whatever proposed the candidates, which is the point: the
@@ -217,11 +232,22 @@ def screen(candidates, donor, target, attest, brown, reject, ranked=False):
         if shares_run(lemma, target):
             reject["overlaps_target"] += 1
             continue
-        forms = [f for f in inflect_like(lemma, suffix) if f in attest]
-        if not forms:
-            reject["inflected_form_unattested"] += 1
-            continue
-        surface = forms[0]
+        if pre_inflected:
+            # The proposer saw the sentence and returned the surface form that belongs in
+            # the slot. Attestation then does the job it should always have done -- is
+            # this a word of the period -- rather than doubling as an inflection oracle.
+            # It was doing the latter badly: mechanical inflection turned 1,528 attested
+            # lemmas into 1,529 attested surfaces while rejecting 836 candidates.
+            if not attested(lemma, attest):
+                reject["not_attested"] += 1
+                continue
+            surface = lemma
+        else:
+            forms = [f for f in inflect_like(lemma, suffix) if f in attest]
+            if not forms:
+                reject["inflected_form_unattested"] += 1
+                continue
+            surface = forms[0]
         if surface == donor.lower() or shares_run(surface, target):
             reject["overlaps_target"] += 1
             continue
@@ -244,7 +270,8 @@ def screen(candidates, donor, target, attest, brown, reject, ranked=False):
     return scored[0][1]
 
 
-def choose_substitute(donor, target, attest, brown, reject, proposals=None):
+def choose_substitute(donor, target, attest, brown, reject, proposals=None,
+                      pre_inflected=False):
     """Screened replacement for `donor`, preferring in-context proposals.
 
     WordNet is the fallback, not the intended source. Measured on 40 items it produced a
@@ -256,7 +283,8 @@ def choose_substitute(donor, target, attest, brown, reject, proposals=None):
     probe. In-context proposals come from `--submit`/`--collect`.
     """
     if proposals:
-        got = screen(proposals, donor, target, attest, brown, reject, ranked=True)
+        got = screen(proposals, donor, target, attest, brown, reject, ranked=True,
+                     pre_inflected=pre_inflected)
         if got:
             return got
     pos = donor_pos(donor)
@@ -350,7 +378,38 @@ def placebo_word(prefix, donor, target, brown, stops):
     return cands[0]
 
 
-def pick_placebo(prefix, donor, target, attest, brown, stops, reject, proposals=None):
+def verified_deletion(prefix, donor, proposed):
+    """A model-authored deletion, or (None, reason) if it is not one.
+
+    The model is asked to delete, not rewrite, and this checks that it did. Every token
+    of the result must appear in the original in order -- a subsequence test, which a
+    paraphrase or a reordering fails and a pure deletion always passes. Without it the
+    arm would silently become "the model rewrote the sentence", which is a different
+    manipulation with a different confound.
+    """
+    if not proposed or not proposed.strip():
+        return None, "model_declined"
+    out = re.sub(r"\s+", " ", proposed).strip()
+    if re.search(r"\b" + re.escape(donor) + r"\b", out, re.I):
+        return None, "donor_survives"
+    orig = re.findall(r"[A-Za-z]+", prefix.lower())
+    got = re.findall(r"[A-Za-z]+", out.lower())
+    if not got:
+        return None, "empty"
+    i = 0
+    for w in got:
+        while i < len(orig) and orig[i] != w:
+            i += 1
+        if i == len(orig):
+            return None, "not_a_subsequence"
+        i += 1
+    if len(out) < 40 or len(out) < 0.6 * len(prefix):
+        return None, "too_much_removed"
+    return out, "model_deletion"
+
+
+def pick_placebo(prefix, donor, target, attest, brown, stops, reject,
+                 chosen=None, proposals=None, pre_inflected=False):
     """(word, replacement) for the INV arm, or (None, None).
 
     The INV arm is what licenses reading the two DIR arms as anything other than
@@ -359,11 +418,24 @@ def pick_placebo(prefix, donor, target, attest, brown, stops, reject, proposals=
     -- the path measured to produce wrong-sense substitutes -- undercut both DIR arms
     rather than just weakening this one.
     """
-    w = placebo_word(prefix, donor, target, brown, stops)
+    w = None
+    if chosen:
+        c = chosen.strip().lower()
+        # The model's choice still has to satisfy the control the heuristic enforced:
+        # a word actually in the passage, not the donor, sharing no form with the target.
+        if (re.search(r"\b" + re.escape(c) + r"\b", prefix, re.I)
+                and c != donor.lower() and not shares_run(c, target)):
+            w = c
+        else:
+            reject["placebo_word_rejected"] += 1
+    if w is None:
+        w = placebo_word(prefix, donor, target, brown, stops)
+        proposals = None          # proposals were for a word we are not using
     if not w:
         reject["no_placebo_candidate"] += 1
         return None, None
-    rep = choose_substitute(w, target, attest, brown, reject, proposals)
+    rep = choose_substitute(w, target, attest, brown, reject, proposals,
+                            pre_inflected=pre_inflected and proposals is not None)
     if not rep:
         return None, None
     return w, rep
@@ -451,11 +523,14 @@ def build(limit=None):
     reject = Counter()
     for row in items:
         iid, target, prefix = row["item_id"], row["target"], row["prefix"]
-        j = {"evidence": row["evidence"]}
         donor = row["donor"]
+        bundle = proposals.get((iid, "bundle")) or {}
+        pre = bool(bundle)
 
-        rep = choose_substitute(donor, target, attest, brown, reject,
-                                proposals.get((iid, "donor")))
+        rep = choose_substitute(
+            donor, target, attest, brown, reject,
+            bundle.get("donor_replacements") or proposals.get((iid, "donor")),
+            pre_inflected=pre)
         if not rep:
             skipped.append((iid, "no_admissible_substitute"))
             continue
@@ -465,10 +540,13 @@ def build(limit=None):
         # substitution (DIR) and placebo (INV) arms. Arms are analysed per arm anyway,
         # so the alternative -- dropping the item outright -- would discard two good
         # observations to preserve a uniform n that the statistics never require.
-        del_prefix, del_how = delete_evidence(prefix, j.get("evidence", ""), donor)
+        del_prefix, del_how = verified_deletion(prefix, donor, bundle.get("deletion"))
+        if del_prefix is None:
+            del_prefix, del_how = delete_evidence(prefix, row["evidence"], donor)
 
         pw, prep = pick_placebo(prefix, donor, target, attest, brown, stops, reject,
-                                proposals.get((iid, "placebo")))
+                                bundle.get("placebo_word"),
+                                bundle.get("placebo_replacements"), pre_inflected=pre)
         if not pw:
             skipped.append((iid, "no_placebo"))
             continue
@@ -499,52 +577,68 @@ PROPOSALS = ANALYSIS / "perturb" / "proposals.jsonl"
 PROPOSE_MANIFEST = ANALYSIS / "perturb" / "batches.json"
 
 PROPOSE_SYSTEM = """\
-You replace one word in a historical citation with a word of the same meaning.
+You prepare minimally-edited variants of a historical citation.
 
-Follow these constraints, which come from the counterfactually-augmented data protocol
-of Kaushik et al. (2020):
-  - retain internal coherence: the passage must still read as the same sentence, about
-    the same thing, in the same register and period
-  - avoid unnecessary changes: change the one word named, nothing else
+Follow the counterfactually-augmented data protocol of Kaushik et al. (2020): each
+variant must retain internal coherence -- still the same sentence, about the same thing,
+in the same register and period -- and avoid unnecessary changes.
 
-Additional constraints specific to this task:
-  - the replacement must share NO run of three or more letters with the FORBIDDEN word
-  - keep the grammatical form of the original word (tense, number, part of speech)
-  - prefer a word that would be unremarkable in English of the period shown
-  - do not reuse the original word
+You produce three things.
 
-Return JSON only: {"candidates": ["word1", "word2", "word3", "word4", "word5"]}
-Order them best first. Give five where you can; give fewer rather than pad with words
-that break the sentence. Do not include internal or system XML tags in your response."""
+1. DONOR_REPLACEMENTS. Words that could stand in for the DONOR word.
+   - each must share NO run of three or more letters with the FORBIDDEN word
+   - give the exact surface form that belongs in the sentence, already inflected: if the
+     donor is "prefers" give "chooses", not "choose"
+   - must be ordinary English of the period shown; do not reuse the donor or a word
+     built on its stem
+
+2. PLACEBO_WORD and PLACEBO_REPLACEMENTS. Choose one OTHER content word from the
+   passage -- not the donor -- that could be swapped for a synonym without changing what
+   the passage says. Prefer one of comparable ordinariness to the donor. It must share no
+   run of three or more letters with the FORBIDDEN word. Then give replacements for it
+   under the same rules as above.
+
+3. DELETION. The passage with the phrase that introduces the donor removed, so the
+   donor no longer appears and what remains is grammatical and still reads as a sentence.
+   Delete words; do not rewrite, reorder, or substitute any word. Keep as much of the
+   passage as possible. If the donor cannot be removed without wrecking the sentence,
+   return an empty string rather than a damaged passage.
+
+Order every list best first. Give fewer rather than pad with words that break the
+sentence. Do not include internal or system XML tags in your response."""
+
+BUNDLE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "donor_replacements": {"type": "array", "items": {"type": "string"}},
+        "placebo_word": {"type": "string"},
+        "placebo_replacements": {"type": "array", "items": {"type": "string"}},
+        "deletion": {"type": "string"},
+    },
+    "required": ["donor_replacements", "placebo_word", "placebo_replacements",
+                 "deletion"],
+    "additionalProperties": False,
+}
 
 
 def propose_prompt(t):
-    return (f"PASSAGE (ends where a word was removed):\n...{t['prefix'][-320:]}\n\n"
-            f"WORD TO REPLACE: {t['word']}\n"
-            f"FORBIDDEN (share no 3-letter run with this): {t['target']}\n\n"
-            f"Give replacements for {t['word']!r} that keep the passage coherent.")
+    return (f"PASSAGE (it stops where a word was removed):\n...{t['prefix'][-320:]}\n\n"
+            f"DONOR: {t['donor']}\n"
+            f"FORBIDDEN (share no 3-letter run with this): {t['target']}\n")
 
 
 def proposal_targets(limit=None):
-    """Every (item, role) pair needing proposals, in a stable order.
+    """One request per item covering all three arms.
 
-    Both arms that substitute a word go through the same proposer and the same screen,
-    so they are requested together: one submit covers the donor for the DIR arm and the
-    placebo word for the INV arm. Keyed by role as well as item because a single item
-    needs two different words replaced, and a flat item_id key would collide.
+    Every gap the screen leaves is a judgement about this sentence -- which surface form
+    fits the slot, which other word is swappable, which phrase can be cut without
+    wrecking the grammar -- so all three are asked of the model that can see the
+    sentence, in one request. Splitting them across batches would pay the passage's input
+    tokens once per arm and still leave the deletion arm mechanical.
     """
-    from nltk.corpus import stopwords
-    stops = set(stopwords.words("english"))
-    brown = brown_freq()
-    out = []
-    for it in locate_donors(limit=limit):
-        out.append({"item_id": it["item_id"], "role": "donor", "word": it["donor"],
-                    "prefix": it["prefix"], "target": it["target"]})
-        pw = placebo_word(it["prefix"], it["donor"], it["target"], brown, stops)
-        if pw:
-            out.append({"item_id": it["item_id"], "role": "placebo", "word": pw,
-                        "prefix": it["prefix"], "target": it["target"]})
-    return out
+    return [{"item_id": it["item_id"], "role": "bundle", "donor": it["donor"],
+             "prefix": it["prefix"], "target": it["target"]}
+            for it in locate_donors(limit=limit)]
 
 
 def mode_submit(args):
@@ -570,12 +664,19 @@ def mode_submit(args):
     # lookup, and the 9 collected results were already high quality) and the ceiling is
     # raised far past what the output needs. `disabled` is valid only at effort `high`
     # or below on this model; `high` is the default, so it is not set explicitly.
+    # Structured outputs rather than a JSON-shaped instruction plus a tolerant parser:
+    # the schema is enforced server-side, so a malformed or truncated object cannot be
+    # returned at all. That removes the failure class that cost the first run, instead of
+    # detecting it after the fact.
     reqs = [Request(custom_id=f"item-{i}",
-                    params=MessageCreateParamsNonStreaming(
-                        model=PROPOSE_MODEL, max_tokens=2000,
-                        thinking={"type": "disabled"},
-                        system=PROPOSE_SYSTEM,
-                        messages=[{"role": "user", "content": propose_prompt(it)}]))
+                    params=MessageCreateParamsNonStreaming(**{
+                        "model": PROPOSE_MODEL, "max_tokens": 2000,
+                        "thinking": {"type": "disabled"},
+                        "system": PROPOSE_SYSTEM,
+                        "output_config": {"format": {"type": "json_schema",
+                                                     "schema": BUNDLE_SCHEMA}},
+                        "messages": [{"role": "user", "content": propose_prompt(it)}],
+                    }))
             for i, it in enumerate(items)]
     PROPOSALS.parent.mkdir(parents=True, exist_ok=True)
     b = cl.messages.batches.create(requests=reqs)
@@ -684,17 +785,17 @@ def mode_collect(args):
             continue
         msg = res.result.message
         text = "".join(b.text for b in msg.content if b.type == "text")
-        cands, why = parse_candidates(text)
-        if not cands:
+        payload, why = parse_bundle(text)
+        if payload is None:
             failures.append((key, f"{why}|stop={getattr(msg,'stop_reason','?')}"))
             continue
-        rows[key] = cands
+        rows[key] = payload
     # Merge rather than truncate: a partial collect must never destroy a good earlier one.
     rows = {**load_proposals(), **rows}
     PROPOSALS.parent.mkdir(parents=True, exist_ok=True)
     with PROPOSALS.open("w") as fh:
         for (iid, role), c in rows.items():
-            fh.write(json.dumps({"item_id": iid, "role": role, "candidates": c}) + "\n")
+            fh.write(json.dumps({"item_id": iid, "role": role, "payload": c}) + "\n")
     got = Counter(role for _, role in rows)
     print(f"wrote {PROPOSALS} ({len(rows)} pairs: "
           + ", ".join(f"{r}={got[r]}" for r in ("donor", "placebo")) + ")")
@@ -707,16 +808,47 @@ def mode_collect(args):
         print(f"  keys written to {fp}")
 
 
+def parse_bundle(text):
+    """(payload_dict, reason). Reason is None on success.
+
+    Structured outputs make the object well-formed at the wire level, so this is a
+    guard rather than a recovery path -- but it stays tolerant, because the run that
+    lost 351 items looked exactly like a well-formed run until someone counted.
+    """
+    if not text.strip():
+        return None, "empty_text"
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", text, re.S)
+        if not m:
+            return None, "truncated_json" if "{" in text else "unparseable"
+        try:
+            obj = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            return None, "unparseable"
+    if not isinstance(obj, dict) or "donor_replacements" not in obj:
+        return None, "schema_mismatch"
+    return obj, None
+
+
 def load_proposals():
-    """{(item_id, role): candidates}. Rows without a role predate the placebo arm."""
+    """{(item_id, role): payload}.
+
+    A `bundle` payload is the dict covering all three arms; a `donor` payload is the
+    bare candidate list from the first, substitution-only run, retained so those items
+    still build if a bundle request fails.
+    """
     if not PROPOSALS.exists():
         return {}
     out = {}
     with PROPOSALS.open() as fh:
         for line in fh:
-            if line.strip():
-                r = json.loads(line)
-                out[(r["item_id"], r.get("role", "donor"))] = r["candidates"]
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            out[(r["item_id"], r.get("role", "donor"))] = r.get("payload",
+                                                                r.get("candidates"))
     return out
 
 
