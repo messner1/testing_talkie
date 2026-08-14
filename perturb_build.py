@@ -285,8 +285,13 @@ def choose_substitute(donor, target, attest, brown, reject, proposals=None,
     if proposals:
         got = screen(proposals, donor, target, attest, brown, reject, ranked=True,
                      pre_inflected=pre_inflected)
-        if got:
-            return got
+        # If the proposer saw the sentence and everything it offered failed the screen,
+        # that is evidence the slot is hard -- usually because the donor itself overlaps
+        # the target (`ileostomy` contains `stoma`), so every near-synonym does too.
+        # WordNet does not know more about the sentence than the model did; letting it
+        # rescue the item produced "a patient with an surgeon" and rewrote "Ileostomy
+        # Association" to "Surgeon Association". Report the item instead.
+        return got
     pos = donor_pos(donor)
     if pos is None:
         reject["donor_not_in_wordnet"] += 1
@@ -392,6 +397,10 @@ def verified_deletion(prefix, donor, proposed):
     out = re.sub(r"\s+", " ", proposed).strip()
     if re.search(r"\b" + re.escape(donor) + r"\b", out, re.I):
         return None, "donor_survives"
+    # Excising a span mid-clause can weld the remainder together across the cut
+    # ("consciousness,and purposes"). The join is the artefact, not the deletion.
+    if re.search(r"[,;:][A-Za-z]", out):
+        return None, "punctuation_artifact"
     orig = re.findall(r"[A-Za-z]+", prefix.lower())
     got = re.findall(r"[A-Za-z]+", out.lower())
     if not got:
@@ -437,6 +446,13 @@ def pick_placebo(prefix, donor, target, attest, brown, stops, reject,
     rep = choose_substitute(w, target, attest, brown, reject, proposals,
                             pre_inflected=pre_inflected and proposals is not None)
     if not rep:
+        return None, None
+    # A substitute that lands beside its own twin ("a natural born" -> "a born born")
+    # is a degenerate string, and the INV arm has to be the cleanest of the three: it is
+    # the baseline against which the DIR arms are read.
+    trial, _ = substitute_all(prefix, w, rep)
+    if re.search(r"\b(\w+)\s+\1\b", trial, re.I):
+        reject["placebo_adjacent_duplicate"] += 1
         return None, None
     return w, rep
 
@@ -527,10 +543,16 @@ def build(limit=None):
         bundle = proposals.get((iid, "bundle")) or {}
         pre = bool(bundle)
 
-        rep = choose_substitute(
-            donor, target, attest, brown, reject,
-            bundle.get("donor_replacements") or proposals.get((iid, "donor")),
-            pre_inflected=pre)
+        # Two-stage merge across proposal sets. Each list is screened under the regime it
+        # was produced for -- the bundle returns surface forms fitted to the slot, the
+        # earlier substitution-only run returns lemmas needing inflection -- so they
+        # cannot be concatenated into one list, but they can be tried in turn. The
+        # earlier set rescues 19 of the 40 items the bundle alone cannot place.
+        rep = choose_substitute(donor, target, attest, brown, reject,
+                                bundle.get("donor_replacements"), pre_inflected=True)
+        if not rep:
+            rep = choose_substitute(donor, target, attest, brown, reject,
+                                    proposals.get((iid, "donor")), pre_inflected=False)
         if not rep:
             skipped.append((iid, "no_admissible_substitute"))
             continue
@@ -540,9 +562,15 @@ def build(limit=None):
         # substitution (DIR) and placebo (INV) arms. Arms are analysed per arm anyway,
         # so the alternative -- dropping the item outright -- would discard two good
         # observations to preserve a uniform n that the statistics never require.
+        # Every deletion passes the same gate regardless of source. The regex fallback
+        # removed the judge's evidence phrase without ever checking the donor went with
+        # it, and left the donor standing in 3 of its 16 outputs -- an arm whose whole
+        # premise is that the donor is gone.
         del_prefix, del_how = verified_deletion(prefix, donor, bundle.get("deletion"))
         if del_prefix is None:
-            del_prefix, del_how = delete_evidence(prefix, row["evidence"], donor)
+            cand, how = delete_evidence(prefix, row["evidence"], donor)
+            del_prefix, why = verified_deletion(prefix, donor, cand)
+            del_how = how if del_prefix else f"{how}_rejected_{why}"
 
         pw, prep = pick_placebo(prefix, donor, target, attest, brown, stops, reject,
                                 bundle.get("placebo_word"),
@@ -920,7 +948,10 @@ def write_batches(built):
 
     meta = []
     for i, batch in enumerate(batches):
-        path = Path(f"perturb_{chr(97 + i)}.jsonl")
+        # `perturb_batch_*`, not `perturb_*`: the sidecar is perturb_metadata.jsonl, and a
+        # glob over the looser pattern picks it up as a batch file. It has no `word` key,
+        # so the failure would land inside the composition loader rather than here.
+        path = Path(f"perturb_batch_{chr(97 + i)}.jsonl")
         with path.open("w") as fh:
             for b in batch:
                 fh.write(json.dumps({
