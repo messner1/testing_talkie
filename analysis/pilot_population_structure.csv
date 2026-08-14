@@ -1,0 +1,25 @@
+model,stratum,N,recalled,rate_pct
+talkie-base,in-cutoff recall,47426,31355,66.1
+talkie-base,post-cutoff (all),2924,645,22.1
+talkie-base,post-cutoff anchored sense,2113,413,19.5
+talkie-base,post-cutoff unanchored word,163,12,7.4
+talkie-base,anchored lemma-age 0-50y,47,5,10.6
+talkie-base,anchored lemma-age 50-150y,218,24,11.0
+talkie-base,anchored lemma-age 150-400y,540,84,15.6
+talkie-base,anchored lemma-age 400y+,1308,300,22.9
+talkie-web,in-cutoff recall,47426,26676,56.2
+talkie-web,post-cutoff (all),2924,1869,63.9
+talkie-web,post-cutoff anchored sense,2113,1322,62.6
+talkie-web,post-cutoff unanchored word,163,106,65.0
+talkie-web,anchored lemma-age 0-50y,47,27,57.4
+talkie-web,anchored lemma-age 50-150y,218,129,59.2
+talkie-web,anchored lemma-age 150-400y,540,328,60.7
+talkie-web,anchored lemma-age 400y+,1308,838,64.1
+typewriter,in-cutoff recall,46017,25084,54.5
+typewriter,post-cutoff (all),4333,690,15.9
+typewriter,post-cutoff anchored sense,3086,446,14.5
+typewriter,post-cutoff unanchored word,268,4,1.5
+typewriter,anchored lemma-age 0-50y,75,7,9.3
+typewriter,anchored lemma-age 50-150y,322,26,8.1
+typewriter,anchored lemma-age 150-400y,848,119,14.0
+typewriter,anchored lemma-age 400y+,1841,294,16.0

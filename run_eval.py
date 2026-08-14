@@ -7,8 +7,8 @@ loads the appropriate backend, and runs the cloze and/or composition harness.
 Examples:
     python run_eval.py --model talkie-base --task both
     python run_eval.py --model typewriter --task cloze --output-dir results/
-    python run_eval.py --model talkie-it --task composition \
-        --tron-cases tron_test_cases.jsonl
+    python run_eval.py --model talkie-base --task composition \
+        --tron-cases perturb_post_a.jsonl --output-dir perturb
     # sanity-check inference over the first 500 cloze samples
     python run_eval.py --model typewriter --task cloze --limit 500
 """
@@ -35,7 +35,12 @@ def main():
     parser.add_argument("--output-dir", default="results", help="Directory for output files")
     parser.add_argument("--ks", type=int, nargs="+", default=[10, 20, 50, 100])
     parser.add_argument("--cloze-dataset", default="Hplm/historical-cloze")
-    parser.add_argument("--tron-cases", default="tron_test_cases.jsonl")
+    # No default: the old one pointed at tron_test_cases.jsonl, removed with the
+    # constructed-stimulus line. A stale default fails inside the composition
+    # loader with a bare FileNotFoundError; requiring it fails here, saying why.
+    parser.add_argument("--tron-cases", default=None,
+                        help="JSONL of composition cases; required for --task "
+                             "composition or both")
     parser.add_argument("--cutoff", type=int, default=None,
                         help="Override the spec's default cutoff year (cloze only)")
     parser.add_argument("--device", default="auto", help="cuda | cpu | auto")
@@ -44,6 +49,10 @@ def main():
                         help="Sanity-check mode: evaluate only the first N cloze samples "
                              "(output is suffixed _subset{N} so it won't clobber a full run)")
     args = parser.parse_args()
+
+    if args.task in ("composition", "both") and not args.tron_cases:
+        parser.error(f"--task {args.task} needs --tron-cases; pass the JSONL of "
+                     "composition cases (e.g. --tron-cases perturb_post_a.jsonl)")
 
     spec = MODEL_REGISTRY[args.model]
     device = resolve_device(args.device)
