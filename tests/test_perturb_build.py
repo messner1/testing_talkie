@@ -193,3 +193,38 @@ def test_form_size_gates_inflection_only_groups():
     # whether a paradigm exists, not whether every member is a separate lexeme. Survival
     # inherits this, so a group that keeps two lexemes plus an inflection measures 3.
     assert NJ.form_size({"form_group": ["filter", "filters", "filtration"]}, words) == 3
+
+
+# --------------------------------------------------------------------------- #
+# Drift spot-check set
+# --------------------------------------------------------------------------- #
+def test_driftcheck_prompts_are_the_committed_prompts(tmp_path, built, monkeypatch):
+    """The unedited prompts must be byte-identical to what the cloze run decoded.
+
+    The check compares fresh decodes against `results/cloze_*_details.csv`. If the prompt
+    differs at all, a mismatch would indicate a different prompt rather than a different
+    environment, and the check would answer a question nobody asked.
+    """
+    idx = PB.prefix_index()          # reads results/ relative to cwd -- before chdir
+    monkeypatch.chdir(tmp_path)
+    PB.write_driftcheck(built)
+    rows = [json.loads(l) for l in Path("perturb_driftcheck.jsonl").open() if l.strip()]
+    assert rows
+    for r in rows:
+        ctx = r["contexts"]["original"]
+        assert ctx.count("[MASK]") == 1
+        prefix = ctx.split("[MASK]")[0].rstrip()
+        iid = PB.SS.item_id("P", PB.SS.NA.norm(r["word"]), prefix)
+        assert iid in idx
+        assert idx[iid][1] == prefix
+    # a repeated target would silently overwrite its twin in the composition loader
+    words = [r["word"].lower() for r in rows]
+    assert len(words) == len(set(words))
+
+
+def test_driftcheck_selection_is_deterministic(tmp_path, built, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    PB.write_driftcheck(built)
+    first = Path("perturb_driftcheck.jsonl").read_text()
+    PB.write_driftcheck(built)
+    assert Path("perturb_driftcheck.jsonl").read_text() == first

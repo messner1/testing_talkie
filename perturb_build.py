@@ -57,6 +57,7 @@ files so none repeats within a file.
 import argparse
 import csv
 import json
+import random
 import re
 import sys
 from collections import Counter, defaultdict
@@ -893,8 +894,13 @@ def main():
                     help="re-read an already-billed batch and report losses; costs nothing")
     ap.add_argument("--only-missing", action="store_true",
                     help="submit only items absent from proposals.jsonl")
+    ap.add_argument("--driftcheck", metavar="DIR", nargs="?", const="perturb_drift",
+                    help="compare decoded unedited prompts in DIR against the committed "
+                         "cloze run (default DIR: perturb_drift)")
     args = ap.parse_args()
 
+    if args.driftcheck:
+        return mode_driftcheck(args)
     if args.diagnose:
         return mode_diagnose(args)
     if args.submit:
@@ -967,6 +973,128 @@ def write_batches(built):
         for m in meta:
             fh.write(json.dumps(m) + "\n")
     print(f"wrote perturb_metadata.jsonl ({len(meta)} rows)")
+    write_driftcheck(built)
+
+
+DRIFT_N = 30
+DRIFT_SEED = 20260814
+
+
+def write_driftcheck(built):
+    """Emit unedited prompts, to test that the committed decode is still a baseline.
+
+    The experiment reuses `results/cloze_{model}_details.csv` as its unedited condition
+    rather than decoding one, which assumes the numerical environment is unchanged since
+    that run. That is an assumption about run provenance, not a measured property: a
+    different GPU, CUDA version or floating-point reduction order can resolve beam ties
+    and near-threshold ranks differently. These items measure it.
+
+    Drawn evenly from both strata and given unique targets, since load_test_cases keys on
+    the target and a repeat would silently drop one of the pair.
+    """
+    pools = defaultdict(list)
+    for b in built:
+        pools[b["stratum"]].append(b)
+    rng = random.Random(DRIFT_SEED)
+    for rows in pools.values():
+        rows.sort(key=lambda b: b["item_id"])       # deterministic before shuffling
+        rng.shuffle(rows)
+
+    picked, seen = [], set()
+    while len(picked) < DRIFT_N and any(pools.values()):
+        for stratum in sorted(pools):                # alternate strata, don't fill one
+            while pools[stratum] and len(picked) < DRIFT_N:
+                b = pools[stratum].pop()
+                if b["target"].lower() in seen:
+                    continue                        # a repeat would overwrite its twin
+                seen.add(b["target"].lower())
+                picked.append(b)
+                break
+
+    path = Path("perturb_driftcheck.jsonl")
+    with path.open("w") as fh:
+        for b in picked:
+            fh.write(json.dumps({
+                "word": b["target"], "category": "driftcheck",
+                "year": b["year"],
+                "contexts": {"original": b["prefix"] + " [MASK]"},
+            }) + "\n")
+    print(f"wrote {path} ({len(picked)} items, "
+          f"{dict(Counter(b['stratum'] for b in picked))})")
+
+
+def committed_predictions(model):
+    """item_id -> the ten words the committed cloze run recorded for that prompt."""
+    src = RESULTS / f"cloze_{model}_details.csv"
+    if not src.exists():
+        return None
+    csv.field_size_limit(10 ** 7)
+    out = {}
+    with src.open() as fh:
+        for row in csv.DictReader(fh):
+            target = row["target_word"]
+            prefix = extract_prefix(row["text"], target)
+            out[SS.item_id("P", SS.NA.norm(target), prefix)] = row["top_10_words"]
+    return out
+
+
+def mode_driftcheck(args):
+    """Compare freshly decoded unedited prompts against the committed decode.
+
+    The experiment reuses results/cloze_{model}_details.csv as its unedited condition
+    instead of decoding one. That is valid only if the same prompt still produces the same
+    ten words -- true under deterministic decoding over fixed weights, provided the
+    numerical environment is unchanged since that run. Different hardware, CUDA version or
+    floating-point reduction order can resolve beam ties and near-threshold ranks
+    differently, and nothing so far has measured whether it did.
+
+    A clean result means no drift was detected at this sample size, not that the two
+    environments are identical: systematic drift would show up in nearly every item, but
+    drift confined to a few near-threshold ranks could hide in 30.
+    """
+    src = Path(args.driftcheck)
+    total_ok = total_bad = 0
+    for model in ("talkie-base", "talkie-web", "typewriter"):
+        path = src / f"composition_{model}_detailed.csv"
+        if not path.exists():
+            print(f"  {model:14} no decode at {path}")
+            continue
+        committed = committed_predictions(model)
+        if committed is None:
+            print(f"  {model:14} no committed cloze run to compare against")
+            continue
+        ok, bad, missing = 0, [], 0
+        csv.field_size_limit(10 ** 7)
+        with path.open() as fh:
+            for row in csv.DictReader(fh):
+                if row.get("context_level") != "original":
+                    continue
+                iid = SS.item_id("P", SS.NA.norm(row["target_word"]), row["prefix"])
+                was = committed.get(iid)
+                if was is None:
+                    missing += 1
+                elif was == row["top_10_words"]:
+                    ok += 1
+                else:
+                    bad.append((row["target_word"], was, row["top_10_words"]))
+        total_ok += ok
+        total_bad += len(bad)
+        flag = "OK" if not bad else "DRIFT"
+        print(f"  {model:14} {flag:6} reproduced {ok}, differed {len(bad)}"
+              + (f", unmatched {missing}" if missing else ""))
+        for target, was, now in bad[:3]:
+            print(f"      {target}\n        committed: {was}\n        now      : {now}")
+
+    print()
+    if total_bad:
+        print(f"  {total_bad} prompt(s) did not reproduce. The committed decode is NOT a\n"
+              f"  valid unedited baseline on this hardware. Decode the unedited condition\n"
+              f"  in full rather than comparing across numerics.")
+    elif total_ok:
+        print(f"  {total_ok} prompts reproduced exactly; no drift detected at this sample\n"
+              f"  size. The committed decode stands as the unedited condition.")
+    else:
+        print("  nothing compared -- run the driftcheck decode first")
 
 
 if __name__ == "__main__":
