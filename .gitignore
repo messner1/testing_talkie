@@ -1,6 +1,11 @@
 # --- Writeup / research prose / notes (kept local, not tracked) ---
 tt.md
 analysis/*.md
+
+# Hand-verification sheets: regenerable from make_verification.py, and they carry the
+# full OED citation text. `analysis/*.md` does not match a subdirectory, so the README
+# has to be named explicitly.
+analysis/verification/
 methodologies/
 /new_tables.md
 

@@ -5,8 +5,16 @@ The question is whether removing the donor removes the paradigm-shaped group fro
 model's predictions. Every item appears both before and after the edit, so each is
 compared with itself: an item that showed a group before and does not after has
 COLLAPSED; one that showed none before and does after has APPEARED. Items unchanged in
-either direction carry no information about the edit, so the test is whether collapses
-exceed appearances by more than chance -- an exact binomial on the discordant pairs.
+either direction carry no information about the edit, so the effect is the CONDITIONAL
+odds ratio over the discordant pairs -- b/c -- tested by the likelihood-ratio G^2 for
+marginal homogeneity. That is the same statistic the rest of the project reports; a
+within-item design simply uses the conditional estimator, which conditions each item on
+its own baseline so the item drops out.
+
+The quantity the experiment exists to estimate is the DONOR-SPECIFIC effect: how much more
+a directional arm collapses than its placebo. Prompting is fragile, so an edit anywhere
+disturbs predictions; only the excess over an edit that leaves the donor intact is about
+the donor. That contrast is also paired on the item -- see `vs_placebo`.
 
 BEFORE comes from the committed cloze decode, judged once by the neighbourhood
 instrument. AFTER comes from the perturbation decode. Survival applies the same
@@ -25,6 +33,7 @@ import math
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import assoc as AS
 import neighborhood_judge as NJ
 
 ANALYSIS = Path("analysis")
@@ -179,10 +188,19 @@ def table(rows):
 
 
 def report(rows, stratum, title):
+    """Within-arm effect: did the edit remove the group?
+
+    Every item is its own control, so the estimate is the CONDITIONAL odds ratio -- b/c
+    over the discordant pairs -- and the test is the likelihood-ratio G^2 for marginal
+    homogeneity. Same statistic as everywhere else in the project; the only difference is
+    that a within-item design uses the conditional estimator, which conditions each item on
+    its own baseline so the item drops out.
+    """
     sel = [r for r in rows if r["stratum"] == stratum]
     print(f"\n{title}")
     print(f"  {'model':14}{'arm':20}{'a':>5}{'b':>5}{'c':>5}{'d':>5}"
-          f"{'before':>9}{'after':>8}{'p':>10}")
+          f"{'before':>8}{'after':>7}{'lambda':>9}{'OR':>8}{'95% CI':>18}{'G^2':>9}")
+    thin = []
     for model in MODELS:
         for arm in ARMS:
             sub = [r for r in sel if r["model"] == model and r["arm"] == arm]
@@ -191,12 +209,65 @@ def report(rows, stratum, title):
             a, b, c, d = table(sub)
             n = len(sub)
             pre, post = (a + b) / n, (a + c) / n
-            p = binom_two_sided(b, c)
-            star = "***" if p < .001 else "**" if p < .01 else "*" if p < .05 else ""
+            l, orr, (lo, hi), g2 = AS.paired(b, c)
+            if b + c < 25:
+                thin.append((model, arm, b, c, binom_two_sided(b, c)))
             print(f"  {model:14}{arm:20}{a:>5}{b:>5}{c:>5}{d:>5}"
-                  f"{pre:>9.3f}{post:>8.3f}{p:>10.4f} {star}")
+                  f"{pre:>8.3f}{post:>7.3f}{l:>9.3f}{orr:>8.2f}"
+                  f"{f'[{lo:.2f}, {hi:.2f}]':>18}{g2:>9.2f} {AS.stars(g2)}")
     print("    a unchanged-present   b COLLAPSED   c appeared   d unchanged-absent")
-    print("    p: exact two-sided binomial on the b/c discordant pairs")
+    print("    lambda = log(b/c), the conditional odds ratio; G^2 tests marginal homogeneity")
+    print("    Where c = 0 no group ever appeared, so the odds ratio is Haldane-corrected"
+          " and\n    bounded below only: read it as 'no reversals', not as a magnitude."
+          " G^2 is the\n    quantity to compare across rows.")
+    for model, arm, b, c, p in thin:
+        print(f"    thin: {model} {arm} has b+c={b + c}; exact binomial p={p:.4f} "
+              f"(cross-check, not reported)")
+
+
+def vs_placebo(rows, stratum, title):
+    """The donor-specific effect: does the directional arm collapse MORE than the placebo?
+
+    This is the quantity the experiment exists to estimate, and it was previously asserted
+    in prose as a difference of collapse rates with no test at all. That treatment was
+    wrong twice over: it was on a different scale from every other result here, and it
+    compared two PAIRED proportions as if they were independent -- the same item is decoded
+    under both arms.
+
+    Pairing is on the item. Restricted to items that showed a group before the edit under
+    BOTH arms, so the two conditions are compared on the same stimuli rather than on two
+    different subsets. b = collapsed under the directional arm but not the placebo,
+    c = the reverse; concordant items carry no information about which arm is stronger.
+    """
+    print(f"\n{title}")
+    print(f"  {'model':14}{'arm':20}{'n':>5}{'b':>5}{'c':>5}"
+          f"{'lambda':>9}{'OR':>8}{'95% CI':>18}{'G^2':>9}")
+    for model in MODELS:
+        idx = defaultdict(dict)
+        for r in rows:
+            if r["stratum"] == stratum and r["model"] == model:
+                idx[r["item_id"]][r["arm"]] = r
+        for arm in ("donor_substituted", "donor_deleted"):
+            b = c = n = 0
+            for item in idx.values():
+                a_row, p_row = item.get(arm), item.get("placebo")
+                if not a_row or not p_row:
+                    continue
+                if not (a_row["before"] and p_row["before"]):
+                    continue          # nothing to lose in one arm or the other
+                n += 1
+                lost_arm = not a_row["after"]
+                lost_pla = not p_row["after"]
+                b += lost_arm and not lost_pla
+                c += lost_pla and not lost_arm
+            if not n:
+                continue
+            l, orr, (lo, hi), g2 = AS.paired(b, c)
+            print(f"  {model:14}{arm:20}{n:>5}{b:>5}{c:>5}"
+                  f"{l:>9.3f}{orr:>8.2f}{f'[{lo:.2f}, {hi:.2f}]':>18}"
+                  f"{g2:>9.2f} {AS.stars(g2)}")
+    print("    paired on the item; both arms had a group before the edit")
+    print("    b = collapsed under the edit but not the placebo, c = the reverse")
 
 
 def by_material(rows, stratum):
@@ -231,7 +302,9 @@ def main():
     print(f"  arms: {dict(Counter(r['arm'] for r in rows))}")
 
     report(rows, "post", "POST-CUTOFF -- the population the claim is about")
+    vs_placebo(rows, "post", "DONOR-SPECIFIC EFFECT -- post-cutoff, each arm vs its placebo")
     report(rows, "incutoff", "IN-CUTOFF -- the matched comparison stratum")
+    vs_placebo(rows, "incutoff", "DONOR-SPECIFIC EFFECT -- in-cutoff")
     if args.material:
         by_material(rows, "post")
 

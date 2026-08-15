@@ -78,6 +78,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import assoc as AS                                       # noqa: E402  (lambda, G^2)
 import neighborhood_analysis as NA                       # noqa: E402  (attestation set)
 import scaffold_judge as SJ                              # noqa: E402  (client, batching)
 from scaffold_judge import lcs_run, _where               # noqa: E402  (do not reimplement)
@@ -1146,20 +1147,25 @@ def mode_validate_cheap(args):
 
 
 def mode_did(args):
-    """The estimand: the scaffolded/not lift post-cutoff, over the same lift in-cutoff.
+    """Association between scaffolding and paradigm structure: two-way and three-way.
 
-    A lift inside the post-cutoff arm alone is not evidence of composition. Scaffolded
-    prompts are SELECTED for supplying morphological material, so they raise form cohesion
-    for any model whatever its cutoff -- talkie-web, which has seen the post-cutoff words,
-    shows a large one. Dividing by the in-cutoff lift removes whatever the selection
-    criterion does mechanically, and leaves what is specific to targets the model could not
-    have seen.
+    Reports both. The TWO-WAY is the association within one stratum -- lambda, the log odds
+    ratio of a single 2x2. The THREE-WAY is whether that association differs across the
+    cutoff, lambda3 = lam_post - lam_in, and it is the estimand.
 
-    Confidence intervals are delta-method on the log scale, summing (1-p)/np over the four
-    cells; the DiD is a ratio of ratios, so log space is where it is symmetric.
+    It has to be the three-way. An association inside the post-cutoff arm alone is not
+    evidence of composition: scaffolded prompts are SELECTED for supplying morphological
+    material, so they raise form cohesion for any model whatever its cutoff -- talkie-web,
+    which has seen the post-cutoff words, shows a large two-way association. Only the second
+    difference asks whether the donor matters MORE where the target cannot have been
+    memorised. So the null for the three-way is homogeneous association -- one odds ratio in
+    both strata -- not an odds ratio of 1.
+
+    Every statistic comes from scipy.stats or statsmodels via `assoc`; nothing here is
+    hand-rolled. The mode name is kept for the CLI flag `--did`, though the presentation is
+    no longer a difference-in-differences: that was a ratio of ratios on the relative-risk
+    scale, and this project now reports one statistic, the log odds ratio, throughout.
     """
-    import math
-
     arms = {}
     for arm, sc in (("post", "postcutoff"), ("in", "incutoff")):
         p = JUDGE / f"verdicts_{args.model}_context{'' if sc == 'postcutoff' else '_' + sc}.jsonl"
@@ -1201,58 +1207,54 @@ def mode_did(args):
                 print(f"  {m:<14}{arm:<6}{vd:<16}{c['n']:>6}" +
                       "".join(f"{c[f]:>6} {c[f]/c['n']:>4.2f}" for _, f in measures))
 
-    def lift(m, arm, f):
-        a, b = cell[(m, arm, "scaffolded")], cell[(m, arm, "not_scaffolded")]
-        if not a[f] or not b[f]:
-            return None, None
-        return (a[f]/a["n"]) / (b[f]/b["n"]), sum(
-            (1 - c[f]/c["n"]) / c[f] for c in (a, b))
+    def table(m, arm, f):
+        """(a, b, c, d) for scaffolded x outcome, in assoc's cell convention."""
+        s, o = cell[(m, arm, "scaffolded")], cell[(m, arm, "not_scaffolded")]
+        return s[f], o[f], s["n"] - s[f], o["n"] - o[f]
 
-    print(f"\n  difference-in-differences  =  post-cutoff lift / in-cutoff lift\n")
-    print(f"  {'model':<14}{'measure':<12}{'post lift':>11}{'in lift':>10}"
-          f"{'DiD':>9}{'95% CI':>18}")
+    print(f"\n  association within each arm — lambda = log odds ratio, tested by G^2\n")
+    print(f"  {'model':<14}{'measure':<12}{'arm':<6}{'lambda':>8}{'OR':>8}"
+          f"{'95% CI':>16}{'G^2':>9}{'min exp':>9}")
     for m in models:
         for lab, f in measures:
-            lp, vp = lift(m, "post", f)
-            li, vi = lift(m, "in", f)
-            if lp is None or li is None:
-                print(f"  {m:<14}{lab:<12}{'—':>11}{'—':>10}{'—':>9}{'zero cell':>18}")
-                continue
-            did = lp / li
-            se = math.sqrt(vp + vi)
-            lo, hi = did * math.exp(-1.96 * se), did * math.exp(1.96 * se)
-            star = "  *" if lo > 1 else ""
-            print(f"  {m:<14}{lab:<12}{lp:>10.2f}x{li:>9.2f}x{did:>8.2f}x"
-                  f"{f'[{lo:.2f}, {hi:.2f}]':>18}{star}")
+            for arm in ("post", "in"):
+                t = table(m, arm, f)
+                l, orr, (lo, hi), g2 = AS.association(*t)
+                print(f"  {m:<14}{lab:<12}{arm:<6}{l:>8.3f}{orr:>8.2f}"
+                      f"{f'[{lo:.2f}, {hi:.2f}]':>16}{g2:>9.1f}"
+                      f"{AS.min_expected(*t):>9.1f} {AS.stars(g2)}")
 
-    print("\n  * CI excludes 1.  `certified` = a group member that is unattested AND not "
-          "documented\n    as an OCR error or historical spelling (Underwood rulesets); "
-          "`form>=k` is the same\n    measure with certification removed entirely -- the "
-          "most inclusive reading.")
+    # The estimand. Not whether scaffolding is associated with paradigm structure -- it is,
+    # in every arm above, and a prompt SELECTED for supplying morphological material would
+    # raise form cohesion for any model whatever its cutoff. The question is whether that
+    # association is STRONGER on targets the model cannot have seen. So the null here is
+    # that the two arms share one odds ratio (homogeneous association), not that the odds
+    # ratio is 1, and the test is the likelihood ratio against the saturated 2x2x2.
+    print(f"\n  interaction — does the association differ across the cutoff?\n")
+    print(f"  {'model':<14}{'measure':<12}{'lambda3':>9}{'OR':>8}{'95% CI':>16}{'G^2':>9}")
+    for m in models:
+        for lab, f in measures:
+            l3, orr, (lo, hi), g2 = AS.interaction(table(m, "post", f),
+                                                   table(m, "in", f))
+            print(f"  {m:<14}{lab:<12}{l3:>9.3f}{orr:>8.2f}"
+                  f"{f'[{lo:.2f}, {hi:.2f}]':>16}{g2:>9.2f} {AS.stars(g2)}")
 
-    # The per-model DiD is still not clean. Post-cutoff targets differ from in-cutoff ones in
-    # ways scaffolding can interact with -- they are rarer, later, more technical -- and that
-    # interaction survives the DiD. It applies to every model regardless of cutoff, which is
-    # what talkie-web is in the design to absorb: it has seen the post-cutoff words, so
-    # whatever DiD it shows is the part that is not composition.
-    if "talkie-web" in models:
-        print(f"\n  triple difference — DiD over talkie-web's, the leaked baseline\n")
-        print(f"  {'model':<14}{'measure':<12}{'DiD':>8}{'web DiD':>10}{'ratio':>9}"
-              f"{'95% CI':>18}")
-        for m in models:
-            if m == "talkie-web":
-                continue
-            for lab, f in measures:
-                num = [lift(m, a, f) for a in ("post", "in")]
-                den = [lift("talkie-web", a, f) for a in ("post", "in")]
-                if any(x[0] is None for x in num + den):
-                    continue
-                dm, dw = num[0][0]/num[1][0], den[0][0]/den[1][0]
-                se = math.sqrt(sum(x[1] for x in num + den))
-                r = dm / dw
-                lo, hi = r * math.exp(-1.96*se), r * math.exp(1.96*se)
-                print(f"  {m:<14}{lab:<12}{dm:>7.2f}x{dw:>9.2f}x{r:>8.2f}x"
-                      f"{f'[{lo:.2f}, {hi:.2f}]':>18}{'  *' if lo > 1 else ''}")
+    print("\n  lambda is the log odds ratio -- the interaction coefficient of the saturated"
+          "\n  log-linear model. Intervals are profile likelihood, so they are the same"
+          "\n  apparatus as G^2 rather than a second one. * G^2 > 3.84, ** > 6.63,"
+          "\n  *** > 10.83 on 1 df.  `min exp` is the smallest expected cell count: below"
+          "\n  about 5 is where chi-squared would fail and G^2 is doing real work."
+          "\n  `certified` = a group member that is unattested AND not documented as an OCR"
+          "\n  error or historical spelling (Underwood rulesets); `form>=k` is the same"
+          "\n  measure with certification removed entirely -- the most inclusive reading.")
+
+    # The triple difference -- each restricted model's interaction divided by talkie-web's --
+    # was reported here and is RETIRED, not merely unreported. Talkie-web is ahistorical: it
+    # has no cutoff to violate, so it composes across a date that means nothing to it.
+    # Dividing by its rate subtracts the phenomenon rather than a confound. Its SE also
+    # summed eight cell variances as if independent, across models that share ~2,883 items.
+    # See neighborhood_measure.md and NOTES_internal.md. Talkie-web's own interaction is
+    # reported in the table above, which is the use it retains.
     # The best-powered contrast in the design, and it uses no scaffolding at all. Restrict to
     # UNSCAFFOLDED neighborhoods and ask whether form cohesion survives the cutoff. A model
     # that has the post-cutoff words in training has no reason to lose cohesion crossing it;
@@ -1260,17 +1262,19 @@ def mode_did(args):
     # thousands, so unlike the triple difference this is not power-bound.
     print(f"\n  cohesion across the cutoff, UNSCAFFOLDED neighborhoods only\n")
     print(f"  {'model':<14}{'measure':<10}{'in-cutoff':>11}{'post-cutoff':>13}"
-          f"{'ratio':>8}{'95% CI':>17}")
+          f"{'lambda':>9}{'OR':>7}{'95% CI':>16}{'G^2':>9}")
     for m in models:
         for k in (2, 3, 5):
             a, b = cell[(m, "in", "not_scaffolded")], cell[(m, "post", "not_scaffolded")]
-            if not a[f"f{k}"] or not b[f"f{k}"]:
-                continue
-            pa, pb = a[f"f{k}"]/a["n"], b[f"f{k}"]/b["n"]
-            r = pb / pa
-            se = math.sqrt((1-pa)/a[f"f{k}"] + (1-pb)/b[f"f{k}"])
-            print(f"  {m:<14}{'form>=' + str(k):<10}{pa:>11.3f}{pb:>13.3f}{r:>8.2f}"
-                  f"{f'[{r*math.exp(-1.96*se):.2f}, {r*math.exp(1.96*se):.2f}]':>17}")
+            f = f"f{k}"
+            # Cue is the post-cutoff stratum, outcome is form cohesion. A single 2x2, so
+            # this is an association and not an interaction -- no second difference here.
+            t = (b[f], a[f], b["n"] - b[f], a["n"] - a[f])
+            l, orr, (lo, hi), g2 = AS.association(*t)
+            print(f"  {m:<14}{'form>=' + str(k):<10}{a[f]/a['n']:>11.3f}"
+                  f"{b[f]/b['n']:>13.3f}{l:>9.3f}{orr:>7.2f}"
+                  f"{f'[{lo:.2f}, {hi:.2f}]':>16}{g2:>9.1f} {AS.stars(g2)}")
+    print("\n  An odds ratio below 1 means cohesion FALLS crossing the cutoff.")
 
     print(f"\n  measurement check — does the judge group differently by date band?\n")
     print(f"  {'arm':<6}{'register':<22}{'n':>7}{'form>=2':>10}")

@@ -43,6 +43,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import assoc as AS                          # noqa: E402  (lambda, G^2)
 import neighborhood_analysis as NA          # noqa: E402
 from scaffold_subset import GRADES, MODELS  # noqa: E402
 
@@ -336,6 +337,22 @@ def _rate(recs, pred, k):
     return (sum(x[k] for x in s) / len(s), len(s)) if s else (None, 0)
 
 
+def _judge_cells(recs, isf, k):
+    """(a, b, c, d) for scaffolded x recall within one stratum, in assoc's convention.
+
+    `unsure` verdicts are excluded, as they are everywhere else in this analysis: the
+    contrast is between a judged scaffold and a judged absence of one, and an abstention
+    is neither. Returns None if either verdict group is empty.
+    """
+    def counts(verdict):
+        s = [x for x in recs
+             if x["future"] is isf and x["judge"]["verdict"] == verdict]
+        hits = sum(x[k] for x in s)
+        return hits, len(s) - hits
+    (a, c), (b, d) = counts("scaffolded"), counts("not_scaffolded")
+    return None if (a + c) == 0 or (b + d) == 0 else (a, b, c, d)
+
+
 def table_judge_ladder(out):
     """View 0 -- the corpus-scale result: recall by judged scaffolding, with two controls.
 
@@ -370,25 +387,46 @@ def table_judge_ladder(out):
                 out.append("| %s | %s |" % (g, " | ".join(cells)))
 
     out.append("")
-    out.append("**Difference-in-differences** — the scaffolded / not-scaffolded recall "
-               "ratio post-cutoff, divided by the same ratio in-cutoff. A model that "
-               "composes should show a larger scaffolding benefit on words it cannot have "
-               "seen. A model that has seen everything should show the same benefit in "
-               "both strata, i.e. about 1.")
+    out.append("**Two-way association** — λ, the log odds ratio of scaffolded against "
+               "not-scaffolded on recall, within one stratum, tested by Dunning's G². "
+               "This says scaffolding is associated with recall; it does not distinguish "
+               "composition from scaffolded prompts simply being easier prompts.")
+    out.append("")
+    out.extend(_hdr(models, ["recall", "stratum"]))
+    for k, klab in (("r100", "@100"), ("r10", "@10")):
+        for isf, slab in ((True, "post-cutoff"), (False, "in-cutoff")):
+            cells = []
+            for m in models:
+                t = _judge_cells(data[m], isf, k)
+                if t is None:
+                    cells.append("—")
+                    continue
+                l, orr, (lo, hi), g2 = AS.association(*t)
+                cells.append("%.3f / OR %.2f [%.2f, %.2f] G²=%.1f%s"
+                             % (l, orr, lo, hi, g2, AS.stars(g2)))
+            out.append("| %s | %s | %s |" % (klab, slab, " | ".join(cells)))
+
+    out.append("")
+    out.append("**Three-way interaction** — λ₃ = λ(post-cutoff) − λ(in-cutoff): whether "
+               "the association is *stronger* on words the model cannot have seen. This "
+               "is the estimand. Its null is homogeneous association — one odds ratio in "
+               "both strata — not an odds ratio of 1, and it is tested by the "
+               "likelihood-ratio G² against the saturated 2×2×2 on 1 df. A model that "
+               "composes should show a larger scaffolding benefit post-cutoff; a model "
+               "that has seen everything should show the same benefit either side, i.e. "
+               "λ₃ about 0.")
     out.append("")
     out.extend(_hdr(models, ["recall"]))
     for k, klab in (("r100", "@100"), ("r10", "@10")):
         cells = []
         for m in models:
-            got = {}
-            for isf in (True, False):
-                a, _ = _rate(data[m], lambda x, i=isf: x["future"] is i
-                             and x["judge"]["verdict"] == "scaffolded", k)
-                b, _ = _rate(data[m], lambda x, i=isf: x["future"] is i
-                             and x["judge"]["verdict"] == "not_scaffolded", k)
-                got[isf] = (a / b) if (a and b) else None
-            cells.append("%.2fx" % (got[True] / got[False])
-                         if got[True] and got[False] else "—")
+            post, incut = _judge_cells(data[m], True, k), _judge_cells(data[m], False, k)
+            if post is None or incut is None:
+                cells.append("—")
+                continue
+            l3, orr, (lo, hi), g2 = AS.interaction(post, incut)
+            cells.append("%.3f / OR %.2f [%.2f, %.2f] G²=%.2f%s"
+                         % (l3, orr, lo, hi, g2, AS.stars(g2)))
         out.append("| %s | %s |" % (klab, " | ".join(cells)))
 
     out.append("")
@@ -580,11 +618,14 @@ def table_outcome_judge(rows, out, model="claude-sonnet-5"):
                 j = json.loads(line)
                 verdicts[j["item_id"]] = j["judge"]["verdict"]
 
+    # `meaning_n` is gone: the outcome judge was reduced to a single form axis, so a record
+    # carries `form_n` only. The meaning and form-dominant rows this view used to print
+    # described a two-axis instrument that no longer exists and are not reconstructible.
     joined = []
     for r in nbr.values():
         v = verdicts.get(r["item_id"])
         if v:
-            joined.append((r["model"], v, r["form_n"], r["meaning_n"]))
+            joined.append((r["model"], v, r["form_n"]))
     if not joined:
         out.append("_Neighborhood verdicts present but none joined to a scaffold "
                    "verdict; check that both runs cover the same scope._\n")
@@ -594,23 +635,35 @@ def table_outcome_judge(rows, out, model="claude-sonnet-5"):
     out.append(f"{len(nbr)} neighborhoods judged on `{model}`, {len(joined)} joined to a "
                "scaffold verdict. Post-cutoff scope.\n")
     out.append("Share of neighborhoods whose form group reaches *k*, by whether the "
-               "prompt was judged scaffolded. The comparison of interest is the gap "
-               "between the two rows, and whether it widens with *k*.\n")
+               "prompt was judged scaffolded, with λ and G² for the association. This is "
+               "the post-cutoff two-way association only; the three-way interaction that "
+               "is the estimand needs the in-cutoff arm too, and is reported by "
+               "`neighborhood_judge.py --did`.\n")
 
-    for k in (1, 3, 5):
+    # k = 2 not 1: `form_n` is judge-assigned membership under code-enforced connectivity,
+    # so it is never 1 -- the realised distribution is {0, 2, 3, ...}. A k=1 row would be
+    # a duplicate of k=2 that looked like a separate threshold.
+    for k in (2, 3, 5):
         out.append(f"\n**k = {k}**\n")
-        out.extend(_hdr(models, ["scaffold verdict", "measure"]))
-        for verdict in ("scaffolded", "not_scaffolded"):
-            for label, pred in (("form ≥ k", lambda f, m, k=k: f >= k),
-                                ("meaning ≥ k", lambda f, m, k=k: m >= k),
-                                ("form-dominant", lambda f, m, k=k: f >= k and m < k)):
-                cells = []
-                for mo in models:
-                    s = [(f, m) for md, v, f, m in joined
-                         if md == mo and v == verdict]
-                    cells.append(f"{sum(pred(f, m) for f, m in s) / len(s):.3f} (n={len(s)})"
-                                 if s else "—")
-                out.append(f"| {verdict} | {label} | " + " | ".join(cells) + " |")
+        out.extend(_hdr(models, ["measure"]))
+        rates, assoc_cells = [], []
+        for mo in models:
+            counts = {}
+            for verdict in ("scaffolded", "not_scaffolded"):
+                s = [f for md, v, f in joined if md == mo and v == verdict]
+                counts[verdict] = (sum(f >= k for f in s), len(s) - sum(f >= k for f in s))
+            (a, c), (b, d) = counts["scaffolded"], counts["not_scaffolded"]
+            rates.append(
+                f"{a / (a + c):.3f} (n={a + c}) vs {b / (b + d):.3f} (n={b + d})"
+                if (a + c) and (b + d) else "—")
+            if (a + c) and (b + d):
+                l, orr, (lo, hi), g2 = AS.association(a, b, c, d)
+                assoc_cells.append("%.3f / OR %.2f [%.2f, %.2f] G²=%.1f%s"
+                                   % (l, orr, lo, hi, g2, AS.stars(g2)))
+            else:
+                assoc_cells.append("—")
+        out.append("| scaffolded vs not | " + " | ".join(rates) + " |")
+        out.append("| λ (two-way) | " + " | ".join(assoc_cells) + " |")
 
     out.append("\n**Not reportable until the cross-model check has run.** Selection and "
                "outcome are judged by the same model here. They share no evidence — the "
