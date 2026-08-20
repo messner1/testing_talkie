@@ -8,7 +8,9 @@ bare-alphabetic continuation tokens with all other mass redirected to EOS — so
 no per-model generation policy.)
 """
 
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 from .prompts import ITFewShotPrompt, PlainPrefixPrompt, PromptStrategy
@@ -16,6 +18,14 @@ from .prompts import ITFewShotPrompt, PlainPrefixPrompt, PromptStrategy
 # Talkie tiktoken vocab sizes (from the `talkie.tokenizer` package constants).
 BASE_VOCAB_SIZE = 65536
 IT_VOCAB_SIZE = BASE_VOCAB_SIZE + 4  # 65540
+
+# Edgar is a local checkpoint, not a Hub repo, so its location is machine-specific.
+# The default assumes edgar_synthetic sits beside this checkout; EDGAR_MODEL_PATH
+# overrides it (the decode box keeps the weights elsewhere).
+EDGAR_MODEL_PATH = os.environ.get(
+    "EDGAR_MODEL_PATH",
+    str(Path(__file__).resolve().parents[2]
+        / "edgar_synthetic/edgar_student_teachers/edgar_clean/student"))
 
 
 @dataclass(frozen=True)
@@ -60,4 +70,14 @@ MODEL_REGISTRY = {
         name="typewriter", family="hf", cutoff_year=1913,
         prompt=PlainPrefixPrompt(),
         hf_repo_id="typewriter-ai/typewriter-1913-7B-base"),
+
+    # 631M Llama distilled on real 1786-1849 text plus synthetic augmentation whose
+    # candidates were rejected on any out-of-vocabulary word, so the training word-type
+    # inventory is the real corpus's. Byte-level BPE, so novel word forms remain
+    # reachable. Separate replication, not a fourth column: no analysis script reads
+    # this entry.
+    "edgar": ModelSpec(
+        name="edgar", family="hf", cutoff_year=1849,
+        prompt=PlainPrefixPrompt(),
+        hf_repo_id=EDGAR_MODEL_PATH),
 }

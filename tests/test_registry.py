@@ -4,7 +4,7 @@ from evals.registry import MODEL_REGISTRY
 
 
 def test_expected_models_present():
-    assert set(MODEL_REGISTRY) == {"talkie-base", "talkie-web", "talkie-it", "typewriter"}
+    assert set(MODEL_REGISTRY) == {"talkie-base", "talkie-web", "talkie-it", "typewriter", "edgar"}
 
 
 def test_family_specific_fields():
